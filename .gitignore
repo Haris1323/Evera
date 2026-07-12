@@ -1,0 +1,47 @@
+# ============================================================
+#  Evera — Unreal Engine .gitignore
+#  Ignoriše sve što se GENERIŠE (build artefakti, cache).
+#  NE ignoriše: .uproject, Config/, Content/, Source/
+# ============================================================
+
+# Unreal generisani folderi
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# IDE / editor
+.vs/
+.idea/
+.vscode/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# Prekompajlirani headeri i objekti
+*.obj
+*.pch
+*.pdb
+*.exp
+*.lib
+*.dll
+*.exe
+
+# OS smeće
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# Privremeni / backup fajlovi
+*.tmp
+*.bak
+*~

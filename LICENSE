@@ -1,0 +1,36 @@
+Copyright (c) 2026 NoLimit Developments FZ-LLC. All Rights Reserved.
+
+EVERA — Proprietary Software License
+====================================
+
+This repository, including all source code, assets, documentation, designs,
+artwork, and other materials (collectively, the "Software"), is the exclusive
+property of NoLimit Developments FZ-LLC ("the Company").
+
+ALL RIGHTS RESERVED.
+
+No part of the Software may be reproduced, distributed, transmitted, modified,
+adapted, publicly displayed, sublicensed, sold, or used to create derivative
+works, in whole or in part, by any means, without the prior written permission
+of the Company.
+
+You may NOT, without express written authorization from the Company:
+  - copy, clone, fork, or redistribute the Software or any portion of it;
+  - use the Software or its assets in any other project, commercial or not;
+  - reverse engineer, decompile, or disassemble any compiled portion;
+  - remove or alter any copyright, trademark, or proprietary notices.
+
+Viewing this repository (if made public) does NOT grant any license or right
+to use the Software beyond what is expressly permitted in writing by the Company.
+
+Third-party components (e.g., Unreal Engine, marketplace assets, libraries)
+remain subject to their own respective licenses. Unreal Engine is used under
+the terms of the Epic Games End User License Agreement.
+
+"Evera" and "NoLimit Developments" are trademarks of NoLimit Developments FZ-LLC.
+
+For licensing inquiries, contact: NoLimit Developments FZ-LLC.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
