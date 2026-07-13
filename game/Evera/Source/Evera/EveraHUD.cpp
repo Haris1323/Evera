@@ -77,6 +77,12 @@ void AEveraHUD::DrawHUD()
 			Craft->GetStoneAxeWoodCost(), Craft->GetStoneAxeStoneCost()),
 			FLinearColor(0.62f, 0.66f, 0.72f), X, Y, Font);
 	}
+
+	// Backpack overlay (toggled with the I key).
+	if (bShowInventory)
+	{
+		DrawBackpack(Pawn);
+	}
 }
 
 void AEveraHUD::DrawStatBar(float X, float Y, const FString& Label, float Value, float Max, const FLinearColor& Color)
@@ -94,4 +100,41 @@ void AEveraHUD::DrawStatBar(float X, float Y, const FString& Label, float Value,
 	DrawRect(FLinearColor(1.f, 1.f, 1.f, 0.14f), X + LabelWidth, BarY, BarWidth, BarHeight);
 	DrawRect(Color, X + LabelWidth, BarY, BarWidth * Fraction, BarHeight);
 	DrawText(FString::Printf(TEXT("%.0f"), Value), FLinearColor(0.80f, 0.82f, 0.85f), X + LabelWidth + BarWidth + 6.f, Y, Font);
+}
+
+void AEveraHUD::DrawBackpack(APawn* Pawn)
+{
+	if (!Canvas || !Pawn)
+	{
+		return;
+	}
+
+	const float W = 320.f;
+	const float H = 220.f;
+	const float X0 = Canvas->SizeX * 0.5f - W * 0.5f;
+	const float Y0 = Canvas->SizeY * 0.5f - H * 0.5f;
+
+	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.86f), X0, Y0, W, H);
+
+	UFont* TitleFont = GEngine ? GEngine->GetMediumFont() : nullptr;
+	UFont* Font = GEngine ? GEngine->GetSmallFont() : nullptr;
+
+	DrawText(TEXT("Backpack"), FLinearColor(0.95f, 0.90f, 0.74f), X0 + 18.f, Y0 + 14.f, TitleFont, 1.2f);
+
+	const float X = X0 + 24.f;
+	float Y = Y0 + 54.f;
+	const FLinearColor ItemColor(0.90f, 0.92f, 0.94f);
+
+	if (const UInventoryComponent* Inventory = Pawn->FindComponentByClass<UInventoryComponent>())
+	{
+		DrawText(FString::Printf(TEXT("Wood         x %d"), Inventory->GetResourceCount(EResourceType::Wood)), ItemColor, X, Y, Font); Y += 28.f;
+		DrawText(FString::Printf(TEXT("Stone        x %d"), Inventory->GetResourceCount(EResourceType::Stone)), ItemColor, X, Y, Font); Y += 28.f;
+	}
+
+	if (const UCraftingComponent* Craft = Pawn->FindComponentByClass<UCraftingComponent>())
+	{
+		DrawText(FString::Printf(TEXT("Stone Axe    x %d"), Craft->GetCraftedCount(ECraftableItem::StoneAxe)), ItemColor, X, Y, Font); Y += 28.f;
+	}
+
+	DrawText(TEXT("[I] close"), FLinearColor(0.60f, 0.63f, 0.68f), X0 + 18.f, Y0 + H - 26.f, Font);
 }

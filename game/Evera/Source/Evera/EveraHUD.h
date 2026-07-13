@@ -19,7 +19,17 @@ class EVERA_API AEveraHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	/** Show/hide the backpack (inventory) panel. */
+	void ToggleInventory() { bShowInventory = !bShowInventory; }
+
+	bool IsInventoryOpen() const { return bShowInventory; }
+
 private:
-	/** Draw one labelled stat bar and return the next Y position. */
+	/** Draw one labelled stat bar. */
 	void DrawStatBar(float X, float Y, const FString& Label, float Value, float Max, const FLinearColor& Color);
+
+	/** Draw the centered backpack panel listing everything the player carries. */
+	void DrawBackpack(class APawn* Pawn);
+
+	bool bShowInventory = false;
 };

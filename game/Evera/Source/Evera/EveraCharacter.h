@@ -13,8 +13,10 @@ class USurvivalStatsComponent;
 class UInventoryComponent;
 class USkillsComponent;
 class UCraftingComponent;
+class UStaticMeshComponent;
 class AResourceNode;
 class UAnimMontage;
+class UAnimSequence;
 class UInputAction;
 struct FInputActionValue;
 
@@ -52,6 +54,10 @@ class AEveraCharacter : public ACharacter
 	/** Turns gathered resources into crafted items (stone axe, ...) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
 	UCraftingComponent* Crafting;
+
+	/** The stone axe held in the right hand; shown once the player has crafted one. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Equipment", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* HeldAxe;
 
 protected:
 
@@ -117,9 +123,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
 	float MaxGatherDistance = 500.f;
 
-	/** Montage played when gathering (a swinging/chopping motion). */
+	/** Gentle "bend down and pick up" animation, played when gathering by hand. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
-	TObjectPtr<UAnimMontage> GatherMontage;
+	TObjectPtr<UAnimSequence> PickupAnim;
+
+	/** Gentle "chop wood" animation, played when gathering with the axe. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	TObjectPtr<UAnimSequence> ChopAnim;
+
+	/** Play the appropriate gather animation (pickup by hand, or chop with axe). */
+	void PlayGatherAnim();
 
 	virtual void BeginPlay() override;
 
@@ -136,6 +149,27 @@ protected:
 
 	/** Try to craft a stone axe (bound to the C key). */
 	void CraftStoneAxe();
+
+	/** Open/close the backpack inventory screen (bound to the I key). */
+	void ToggleInventory();
+
+	/** Hand bone/socket the axe attaches to. */
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FName AxeHandSocket = TEXT("hand_r");
+
+	/** Grip transform of the axe relative to the hand socket (tune to fit). */
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FVector AxeGripLocation = FVector(0.f, 0.f, 0.f);
+
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FRotator AxeGripRotation = FRotator(0.f, 0.f, 180.f);
+
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	float AxeGripScale = 0.01f;
+
+	/** Show/hide the held axe based on whether the player owns one. */
+	UFUNCTION()
+	void UpdateHeldAxe();
 
 	/** Server RPC that performs the authoritative craft. */
 	UFUNCTION(Server, Reliable)

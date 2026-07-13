@@ -14,10 +14,15 @@
 #include "InventoryComponent.h"
 #include "SkillsComponent.h"
 #include "CraftingComponent.h"
+#include "EveraHUD.h"
 #include "ResourceNode.h"
+#include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
-#include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Evera.h"
 
 AEveraCharacter::AEveraCharacter()
@@ -43,6 +48,9 @@ AEveraCharacter::AEveraCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
+	// Tick drives the gentle gather bend.
+	PrimaryActorTick.bCanEverTick = true;
+
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -65,6 +73,12 @@ AEveraCharacter::AEveraCharacter()
 
 	// Create the crafting component (turns resources into tools)
 	Crafting = CreateDefaultSubobject<UCraftingComponent>(TEXT("Crafting"));
+
+	// Create the held-axe mesh, attached to the right hand (hidden until crafted).
+	HeldAxe = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldAxe"));
+	HeldAxe->SetupAttachment(GetMesh(), AxeHandSocket);
+	HeldAxe->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HeldAxe->SetVisibility(false);
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
@@ -98,6 +112,9 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 	// Craft a stone axe on the C key.
 	PlayerInputComponent->BindKey(EKeys::C, IE_Pressed, this, &AEveraCharacter::CraftStoneAxe);
+
+	// Open/close the backpack on the I key.
+	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &AEveraCharacter::ToggleInventory);
 }
 
 void AEveraCharacter::Move(const FInputActionValue& Value)
@@ -122,11 +139,23 @@ void AEveraCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Load the gather swing montage (runtime load is safe).
-	if (!GatherMontage)
+	// Set up the held axe: load the mesh, place it in the hand, hide until crafted.
+	if (UStaticMesh* AxeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Evera/Items/SM_EVERA_Axe_combined/StaticMeshes/SM_EVERA_Axe.SM_EVERA_Axe")))
 	{
-		GatherMontage = LoadObject<UAnimMontage>(nullptr, TEXT("/Game/Variant_Combat/Anims/AM_ComboAttack.AM_ComboAttack"));
+		HeldAxe->SetStaticMesh(AxeMesh);
 	}
+	HeldAxe->SetRelativeLocation(AxeGripLocation);
+	HeldAxe->SetRelativeRotation(AxeGripRotation);
+	HeldAxe->SetRelativeScale3D(FVector(AxeGripScale));
+	if (Crafting)
+	{
+		Crafting->OnCraftingChanged.AddDynamic(this, &AEveraCharacter::UpdateHeldAxe);
+	}
+	UpdateHeldAxe();
+
+	// Load the gather animations (created on our own skeleton, no retarget needed).
+	PickupAnim = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Evera/Animations/AN_EVERA_Pickup_Ground.AN_EVERA_Pickup_Ground"));
+	ChopAnim = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Evera/Animations/AN_EVERA_Chop_Wood.AN_EVERA_Chop_Wood"));
 
 	if (!HasAuthority() || !bSpawnTestResourceNodes)
 	{
@@ -188,11 +217,8 @@ void AEveraCharacter::Interact()
 	{
 		if (AResourceNode* Node = Cast<AResourceNode>(Hit.GetActor()))
 		{
-			// Play the swing locally for immediate feedback, then gather on the server.
-			if (GatherMontage)
-			{
-				PlayAnimMontage(GatherMontage);
-			}
+			// Gather animation disabled for now: the AI-generated clips look wrong.
+			// Re-enable PlayGatherAnim() once we have quality anims (e.g. Mixamo mocap).
 			ServerGather(Node);
 		}
 	}
@@ -224,6 +250,41 @@ void AEveraCharacter::ServerCraftStoneAxe_Implementation()
 	if (Crafting)
 	{
 		Crafting->TryCraftStoneAxe();
+	}
+}
+
+void AEveraCharacter::ToggleInventory()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (AEveraHUD* HUD = Cast<AEveraHUD>(PC->GetHUD()))
+		{
+			HUD->ToggleInventory();
+		}
+	}
+}
+
+void AEveraCharacter::UpdateHeldAxe()
+{
+	if (HeldAxe && Crafting)
+	{
+		HeldAxe->SetVisibility(Crafting->GetCraftedCount(ECraftableItem::StoneAxe) > 0);
+	}
+}
+
+void AEveraCharacter::PlayGatherAnim()
+{
+	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	const bool bHasAxe = Crafting && Crafting->GetCraftedCount(ECraftableItem::StoneAxe) > 0;
+	UAnimSequence* Chosen = (bHasAxe && ChopAnim) ? ChopAnim.Get() : PickupAnim.Get();
+	if (Chosen)
+	{
+		AnimInstance->PlaySlotAnimationAsDynamicMontage(Chosen, TEXT("DefaultSlot"), 0.15f, 0.25f, 1.f, 1);
 	}
 }
 

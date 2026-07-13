@@ -45,3 +45,15 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 *~
+
+# ============================================================
+#  Veliki preuzeti marketplace/Fab asseti (preskupi za GitHub LFS)
+#  Ponovo se skidaju s Fab. Kod ima fallback ako fale.
+# ============================================================
+game/Evera/Content/Megaplant_Library/
+game/Evera/Content/Fab/
+game/Evera/Content/Medieval_Campfire/
+game/Evera/Content/Megaplant/
+
+# Sirove prototype animacije (AI, slab kvalitet, glomazne)
+assets/animations/
