@@ -12,6 +12,7 @@
 #include "InputActionValue.h"
 #include "SurvivalStatsComponent.h"
 #include "InventoryComponent.h"
+#include "SkillsComponent.h"
 #include "ResourceNode.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
@@ -56,6 +57,9 @@ AEveraCharacter::AEveraCharacter()
 
 	// Create the inventory component (gathered resources)
 	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
+
+	// Create the skills component (woodcutting, mining, ... grow through use)
+	Skills = CreateDefaultSubobject<USkillsComponent>(TEXT("Skills"));
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)

@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "InventoryComponent.h"
+#include "SkillsComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -59,11 +60,21 @@ int32 AResourceNode::Gather(AActor* Gatherer)
 		return 0;
 	}
 
-	const int32 Granted = FMath::Min(AmountPerGather, RemainingAmount);
+	// The matching skill makes you gather more, and gathering trains that skill.
+	const ESkillType Skill = (ResourceType == EResourceType::Wood) ? ESkillType::Woodcutting : ESkillType::Mining;
+	USkillsComponent* Skills = Gatherer->FindComponentByClass<USkillsComponent>();
+	const int32 Bonus = Skills ? Skills->GetGatherBonus(Skill) : 0;
+
+	const int32 Granted = FMath::Min(AmountPerGather + Bonus, RemainingAmount);
 
 	if (UInventoryComponent* Inventory = Gatherer->FindComponentByClass<UInventoryComponent>())
 	{
 		Inventory->AddResource(ResourceType, Granted);
+	}
+
+	if (Skills)
+	{
+		Skills->AddXP(Skill, static_cast<float>(Granted));
 	}
 
 	RemainingAmount -= Granted;

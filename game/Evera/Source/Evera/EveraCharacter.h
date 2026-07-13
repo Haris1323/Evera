@@ -11,6 +11,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class USurvivalStatsComponent;
 class UInventoryComponent;
+class USkillsComponent;
 class AResourceNode;
 class UInputAction;
 struct FInputActionValue;
@@ -41,6 +42,10 @@ class AEveraCharacter : public ACharacter
 	/** Holds resources the character has gathered */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
 	UInventoryComponent* Inventory;
+
+	/** Tracks skills that grow through use (woodcutting, mining, ...) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
+	USkillsComponent* Skills;
 
 protected:
 
