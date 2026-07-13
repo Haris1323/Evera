@@ -177,7 +177,7 @@ void AEveraCharacter::BeginPlay()
 		return;
 	}
 
-	// Turn the empty level into a forest around the player (Pro trees + rocks).
+	// Turn the empty level into a forest around the player.
 	GetWorld()->SpawnActor<AForestSpawner>(AForestSpawner::StaticClass(), FTransform(GetActorLocation()));
 
 	// Prototype convenience: drop a ring of gatherable nodes around the player so

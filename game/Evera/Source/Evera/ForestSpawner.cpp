@@ -18,41 +18,60 @@ void AForestSpawner::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Pro trees (modeled in metres ~2.7 m tall; scatter a bit larger for a forest).
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Oak_Pro/StaticMeshes/SM_EVERA_Oak_Pro.SM_EVERA_Oak_Pro"),         16, 700.f, 6000.f, 1.4f, 2.4f, true);
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Pine_Pro/StaticMeshes/SM_EVERA_Pine_Pro.SM_EVERA_Pine_Pro"),       18, 700.f, 6000.f, 1.4f, 2.4f, true);
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Birch_Pro/StaticMeshes/SM_EVERA_Birch_Pro.SM_EVERA_Birch_Pro"),     14, 700.f, 6000.f, 1.4f, 2.4f, true);
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_AppleTree_Pro/StaticMeshes/SM_EVERA_AppleTree_Pro.SM_EVERA_AppleTree_Pro"), 10, 900.f, 6000.f, 1.3f, 2.0f, true);
+	// CozyNature pack (professional, ready-made working materials).
+	const FString CN = TEXT("/Game/CozyNature/Meshes/");
 
-	// Rocks (earlier nature pack; scatter larger).
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Rock_01/StaticMeshes/SM_EVERA_Rock_01.SM_EVERA_Rock_01"), 8, 600.f, 6000.f, 2.0f, 5.0f, true);
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Rock_02/StaticMeshes/SM_EVERA_Rock_02.SM_EVERA_Rock_02"), 8, 600.f, 6000.f, 2.0f, 5.0f, true);
-	ScatterMesh(TEXT("/Game/Evera/Nature/SM_EVERA_Rock_03/StaticMeshes/SM_EVERA_Rock_03.SM_EVERA_Rock_03"), 8, 600.f, 6000.f, 2.0f, 5.0f, true);
+	// Trees (collide).
+	ScatterProp({ CN + TEXT("Trees/SM_Tree1.SM_Tree1") }, 16, 800.f, 6000.f, 0.8f, 1.6f, true);
+	ScatterProp({ CN + TEXT("Trees/SM_Tree2.SM_Tree2") }, 16, 800.f, 6000.f, 0.8f, 1.6f, true);
+	ScatterProp({ CN + TEXT("Trees/SM_Tree3.SM_Tree3") }, 14, 800.f, 6000.f, 0.8f, 1.6f, true);
+
+	// Rocks (collide).
+	ScatterProp({ CN + TEXT("Rocks/SM_Rock1.SM_Rock1") }, 8, 500.f, 6000.f, 0.8f, 2.0f, true);
+	ScatterProp({ CN + TEXT("Rocks/SM_Rock2.SM_Rock2") }, 8, 500.f, 6000.f, 0.8f, 2.0f, true);
+	ScatterProp({ CN + TEXT("Rocks/SM_Rock3.SM_Rock3") }, 8, 500.f, 6000.f, 0.8f, 2.0f, true);
+
+	// Ground cover (no collision).
+	ScatterProp({ CN + TEXT("Foliage/SM_Bush.SM_Bush") },       30, 300.f, 6000.f, 0.8f, 1.5f, false);
+	ScatterProp({ CN + TEXT("Foliage/SM_Grass1.SM_Grass1") }, 120, 250.f, 6000.f, 0.8f, 1.6f, false);
+	ScatterProp({ CN + TEXT("Foliage/SM_Grass2.SM_Grass2") }, 120, 250.f, 6000.f, 0.8f, 1.6f, false);
+	ScatterProp({ CN + TEXT("Foliage/SM_Flower1.SM_Flower1") }, 40, 300.f, 6000.f, 0.8f, 1.5f, false);
+	ScatterProp({ CN + TEXT("Foliage/SM_Flower2.SM_Flower2") }, 40, 300.f, 6000.f, 0.8f, 1.5f, false);
 }
 
-void AForestSpawner::ScatterMesh(const TCHAR* MeshPath, int32 Count, float MinRadius, float MaxRadius,
+void AForestSpawner::ScatterProp(const TArray<FString>& MeshPaths, int32 Count, float MinRadius, float MaxRadius,
 	float MinScale, float MaxScale, bool bCollision)
 {
-	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, MeshPath);
-	if (!Mesh)
+	TArray<UHierarchicalInstancedStaticMeshComponent*> Hisms;
+	for (const FString& Path : MeshPaths)
+	{
+		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path);
+		if (!Mesh)
+		{
+			continue;
+		}
+
+		UHierarchicalInstancedStaticMeshComponent* Hism = NewObject<UHierarchicalInstancedStaticMeshComponent>(this);
+		Hism->SetupAttachment(SceneRoot);
+		Hism->SetStaticMesh(Mesh);
+		Hism->SetCastShadow(true);
+		if (bCollision)
+		{
+			Hism->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Hism->SetCollisionResponseToAllChannels(ECR_Block);
+		}
+		else
+		{
+			Hism->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+		Hism->RegisterComponent();
+		Hisms.Add(Hism);
+	}
+
+	if (Hisms.Num() == 0)
 	{
 		return;
 	}
-
-	UHierarchicalInstancedStaticMeshComponent* HISM = NewObject<UHierarchicalInstancedStaticMeshComponent>(this);
-	HISM->SetupAttachment(SceneRoot);
-	HISM->SetStaticMesh(Mesh);
-	HISM->SetCastShadow(true);
-	if (bCollision)
-	{
-		HISM->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		HISM->SetCollisionResponseToAllChannels(ECR_Block);
-	}
-	else
-	{
-		HISM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-	HISM->RegisterComponent();
 
 	const FVector Center = GetActorLocation();
 
@@ -62,7 +81,6 @@ void AForestSpawner::ScatterMesh(const TCHAR* MeshPath, int32 Count, float MinRa
 		const float Radius = FMath::FRandRange(MinRadius, MaxRadius);
 		FVector Position = Center + FVector(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, 0.f);
 
-		// Drop onto the ground.
 		FHitResult Ground;
 		const FVector Start = Position + FVector(0.f, 0.f, 2000.f);
 		const FVector End = Position - FVector(0.f, 0.f, 4000.f);
@@ -79,6 +97,11 @@ void AForestSpawner::ScatterMesh(const TCHAR* MeshPath, int32 Count, float MinRa
 		const float Scale = FMath::FRandRange(MinScale, MaxScale);
 		const FRotator Rotation(0.f, FMath::FRandRange(0.f, 360.f), 0.f);
 		const FTransform InstanceTransform(Rotation, Position, FVector(Scale));
-		HISM->AddInstance(InstanceTransform, /*bWorldSpace=*/true);
+
+		// Add the same transform to every part so a whole tree/rock appears together.
+		for (UHierarchicalInstancedStaticMeshComponent* Hism : Hisms)
+		{
+			Hism->AddInstance(InstanceTransform, /*bWorldSpace=*/true);
+		}
 	}
 }
