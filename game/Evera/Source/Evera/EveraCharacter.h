@@ -9,6 +9,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class USurvivalStatsComponent;
 class UInputAction;
 struct FInputActionValue;
 
@@ -30,7 +31,11 @@ class AEveraCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-	
+
+	/** Tracks the character's needs: health, hunger, thirst, energy */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
+	USurvivalStatsComponent* SurvivalStats;
+
 protected:
 
 	/** Jump Input Action */

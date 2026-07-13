@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "SurvivalStatsComponent.h"
 #include "Evera.h"
 
 AEveraCharacter::AEveraCharacter()
@@ -45,6 +46,9 @@ AEveraCharacter::AEveraCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	// Create the survival stats component (health, hunger, thirst, energy)
+	SurvivalStats = CreateDefaultSubobject<USurvivalStatsComponent>(TEXT("SurvivalStats"));
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
