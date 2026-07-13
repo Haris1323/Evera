@@ -12,6 +12,7 @@ class UCameraComponent;
 class USurvivalStatsComponent;
 class UInventoryComponent;
 class USkillsComponent;
+class UCraftingComponent;
 class AResourceNode;
 class UAnimMontage;
 class UInputAction;
@@ -47,6 +48,10 @@ class AEveraCharacter : public ACharacter
 	/** Tracks skills that grow through use (woodcutting, mining, ...) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
 	USkillsComponent* Skills;
+
+	/** Turns gathered resources into crafted items (stone axe, ...) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
+	UCraftingComponent* Crafting;
 
 protected:
 
@@ -128,6 +133,13 @@ protected:
 	/** Server RPC that performs the authoritative gather. */
 	UFUNCTION(Server, Reliable)
 	void ServerGather(AResourceNode* Node);
+
+	/** Try to craft a stone axe (bound to the C key). */
+	void CraftStoneAxe();
+
+	/** Server RPC that performs the authoritative craft. */
+	UFUNCTION(Server, Reliable)
+	void ServerCraftStoneAxe();
 
 public:
 

@@ -8,6 +8,7 @@
 #include "SurvivalStatsComponent.h"
 #include "InventoryComponent.h"
 #include "SkillsComponent.h"
+#include "CraftingComponent.h"
 
 void AEveraHUD::DrawHUD()
 {
@@ -28,7 +29,7 @@ void AEveraHUD::DrawHUD()
 	const float PanelX = 16.f;
 	const float PanelY = 16.f;
 	const float PanelW = 210.f;
-	const float PanelH = 156.f;
+	const float PanelH = 196.f;
 	DrawRect(FLinearColor(0.03f, 0.05f, 0.07f, 0.42f), PanelX, PanelY, PanelW, PanelH);
 
 	const float X = PanelX + 12.f;
@@ -63,6 +64,18 @@ void AEveraHUD::DrawHUD()
 		DrawText(FString::Printf(TEXT("Woodcut Lv%d    Mining Lv%d"),
 			Skills->GetLevel(ESkillType::Woodcutting), Skills->GetLevel(ESkillType::Mining)),
 			FLinearColor(0.74f, 0.64f, 0.98f), X, Y, Font);
+		Y += 20.f;
+	}
+
+	// --- Crafting ---
+	if (const UCraftingComponent* Craft = Pawn->FindComponentByClass<UCraftingComponent>())
+	{
+		DrawText(FString::Printf(TEXT("Stone Axe  %d"), Craft->GetCraftedCount(ECraftableItem::StoneAxe)),
+			FLinearColor(0.86f, 0.80f, 0.70f), X, Y, Font);
+		Y += 16.f;
+		DrawText(FString::Printf(TEXT("[C] Craft Axe (%dW %dS)"),
+			Craft->GetStoneAxeWoodCost(), Craft->GetStoneAxeStoneCost()),
+			FLinearColor(0.62f, 0.66f, 0.72f), X, Y, Font);
 	}
 }
 

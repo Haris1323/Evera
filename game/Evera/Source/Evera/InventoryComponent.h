@@ -33,6 +33,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="Inventory")
 	int32 GetResourceCount(EResourceType Type) const;
 
+	/** Whether the inventory holds at least Amount of a resource. */
+	UFUNCTION(BlueprintPure, Category="Inventory")
+	bool HasResource(EResourceType Type, int32 Amount) const;
+
+	/** Remove an amount of a resource. Returns false if there isn't enough. */
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool RemoveResource(EResourceType Type, int32 Amount);
+
 	UPROPERTY(BlueprintAssignable, Category="Inventory")
 	FOnInventoryChanged OnInventoryChanged;
 

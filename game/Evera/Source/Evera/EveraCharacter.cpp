@@ -13,6 +13,7 @@
 #include "SurvivalStatsComponent.h"
 #include "InventoryComponent.h"
 #include "SkillsComponent.h"
+#include "CraftingComponent.h"
 #include "ResourceNode.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
@@ -62,6 +63,9 @@ AEveraCharacter::AEveraCharacter()
 	// Create the skills component (woodcutting, mining, ... grow through use)
 	Skills = CreateDefaultSubobject<USkillsComponent>(TEXT("Skills"));
 
+	// Create the crafting component (turns resources into tools)
+	Crafting = CreateDefaultSubobject<UCraftingComponent>(TEXT("Crafting"));
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
@@ -91,6 +95,9 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	// component, so bind through the base UInputComponent pointer (E is not mapped
 	// to any Enhanced Input action, so this legacy binding still fires).
 	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &AEveraCharacter::Interact);
+
+	// Craft a stone axe on the C key.
+	PlayerInputComponent->BindKey(EKeys::C, IE_Pressed, this, &AEveraCharacter::CraftStoneAxe);
 }
 
 void AEveraCharacter::Move(const FInputActionValue& Value)
@@ -205,6 +212,19 @@ void AEveraCharacter::ServerGather_Implementation(AResourceNode* Node)
 	}
 
 	Node->Gather(this);
+}
+
+void AEveraCharacter::CraftStoneAxe()
+{
+	ServerCraftStoneAxe();
+}
+
+void AEveraCharacter::ServerCraftStoneAxe_Implementation()
+{
+	if (Crafting)
+	{
+		Crafting->TryCraftStoneAxe();
+	}
 }
 
 void AEveraCharacter::DoMove(float Right, float Forward)

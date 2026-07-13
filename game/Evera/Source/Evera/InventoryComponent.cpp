@@ -65,6 +65,34 @@ int32 UInventoryComponent::GetResourceCount(EResourceType Type) const
 	return 0;
 }
 
+bool UInventoryComponent::HasResource(EResourceType Type, int32 Amount) const
+{
+	return GetResourceCount(Type) >= Amount;
+}
+
+bool UInventoryComponent::RemoveResource(EResourceType Type, int32 Amount)
+{
+	if (Amount <= 0)
+	{
+		return true;
+	}
+
+	for (FInventoryItem& Item : Items)
+	{
+		if (Item.Type == Type)
+		{
+			if (Item.Count < Amount)
+			{
+				return false;
+			}
+			Item.Count -= Amount;
+			OnInventoryChanged.Broadcast();
+			return true;
+		}
+	}
+	return false;
+}
+
 void UInventoryComponent::OnRep_Items()
 {
 	// On the client: inventory changed on the server -> refresh UI.
