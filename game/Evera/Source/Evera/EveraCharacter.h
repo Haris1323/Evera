@@ -13,6 +13,7 @@ class USurvivalStatsComponent;
 class UInventoryComponent;
 class USkillsComponent;
 class AResourceNode;
+class UAnimMontage;
 class UInputAction;
 struct FInputActionValue;
 
@@ -110,6 +111,10 @@ protected:
 	/** Max distance from the character to a node for a gather to be valid (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
 	float MaxGatherDistance = 500.f;
+
+	/** Montage played when gathering (a swinging/chopping motion). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	TObjectPtr<UAnimMontage> GatherMontage;
 
 	virtual void BeginPlay() override;
 

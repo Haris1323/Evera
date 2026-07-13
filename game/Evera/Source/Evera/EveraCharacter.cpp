@@ -16,6 +16,7 @@
 #include "ResourceNode.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
+#include "Animation/AnimMontage.h"
 #include "Evera.h"
 
 AEveraCharacter::AEveraCharacter()
@@ -114,6 +115,12 @@ void AEveraCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Load the gather swing montage (runtime load is safe).
+	if (!GatherMontage)
+	{
+		GatherMontage = LoadObject<UAnimMontage>(nullptr, TEXT("/Game/Variant_Combat/Anims/AM_ComboAttack.AM_ComboAttack"));
+	}
+
 	if (!HasAuthority() || !bSpawnTestResourceNodes)
 	{
 		return;
@@ -174,6 +181,11 @@ void AEveraCharacter::Interact()
 	{
 		if (AResourceNode* Node = Cast<AResourceNode>(Hit.GetActor()))
 		{
+			// Play the swing locally for immediate feedback, then gather on the server.
+			if (GatherMontage)
+			{
+				PlayAnimMontage(GatherMontage);
+			}
 			ServerGather(Node);
 		}
 	}
