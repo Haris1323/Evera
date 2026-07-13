@@ -54,6 +54,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Survival")
 	bool IsAlive() const { return Health > 0.f; }
 
+	/** Maximum value each stat can reach. */
+	UFUNCTION(BlueprintPure, Category="Survival")
+	float GetMaxValue() const { return MaxValue; }
+
 	// ---- Events (for UI and gameplay) ----
 
 	UPROPERTY(BlueprintAssignable, Category="Survival")
@@ -116,7 +120,7 @@ protected:
 
 	/** Temporary on-screen debug readout (disable once we add a real UI). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Survival|Debug")
-	bool bShowDebugOnScreen = true;
+	bool bShowDebugOnScreen = false;
 
 private:
 	/** Decay/regeneration simulation (server only). */

@@ -38,7 +38,7 @@ public:
 
 	/** Temporary on-screen debug readout of the inventory (disable once we add a real UI). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory|Debug")
-	bool bShowDebugOnScreen = true;
+	bool bShowDebugOnScreen = false;
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
