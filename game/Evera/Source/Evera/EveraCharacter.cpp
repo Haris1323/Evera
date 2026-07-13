@@ -11,6 +11,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "SurvivalStatsComponent.h"
+#include "InventoryComponent.h"
+#include "ResourceNode.h"
+#include "Engine/World.h"
+#include "CollisionQueryParams.h"
 #include "Evera.h"
 
 AEveraCharacter::AEveraCharacter()
@@ -50,6 +54,9 @@ AEveraCharacter::AEveraCharacter()
 	// Create the survival stats component (health, hunger, thirst, energy)
 	SurvivalStats = CreateDefaultSubobject<USurvivalStatsComponent>(TEXT("SurvivalStats"));
 
+	// Create the inventory component (gathered resources)
+	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
@@ -74,6 +81,11 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	{
 		UE_LOG(LogEvera, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
+
+	// Interact / gather on the E key. Enhanced Input deletes BindKey on its own
+	// component, so bind through the base UInputComponent pointer (E is not mapped
+	// to any Enhanced Input action, so this legacy binding still fires).
+	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &AEveraCharacter::Interact);
 }
 
 void AEveraCharacter::Move(const FInputActionValue& Value)
@@ -92,6 +104,95 @@ void AEveraCharacter::Look(const FInputActionValue& Value)
 
 	// route the input
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
+}
+
+void AEveraCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (!HasAuthority() || !bSpawnTestResourceNodes)
+	{
+		return;
+	}
+
+	// Prototype convenience: drop a ring of gatherable nodes around the player so
+	// there is something to harvest without hand-placing actors in the level.
+	// Remove this once the world has real, level-placed resources.
+	const int32 NumNodes = 6;
+	const float Radius = 450.f;
+	const FVector Center = GetActorLocation();
+
+	for (int32 i = 0; i < NumNodes; ++i)
+	{
+		const EResourceType Type = (i % 2 == 0) ? EResourceType::Wood : EResourceType::Stone;
+		const float HalfHeight = (Type == EResourceType::Wood) ? 100.f : 40.f;
+
+		const float Angle = (2.f * PI * i) / NumNodes;
+		const FVector Dir(FMath::Cos(Angle), FMath::Sin(Angle), 0.f);
+		FVector SpawnLocation = Center + Dir * Radius;
+
+		// Drop the node onto the ground beneath the ring position.
+		FHitResult Ground;
+		const FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 300.f);
+		const FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 1000.f);
+		FCollisionQueryParams GroundParams(FName(TEXT("NodeGround")), false, this);
+		if (GetWorld()->LineTraceSingleByChannel(Ground, TraceStart, TraceEnd, ECC_Visibility, GroundParams))
+		{
+			SpawnLocation.Z = Ground.ImpactPoint.Z + HalfHeight;
+		}
+		else
+		{
+			SpawnLocation.Z += HalfHeight;
+		}
+
+		const FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
+		AResourceNode* Node = GetWorld()->SpawnActorDeferred<AResourceNode>(
+			AResourceNode::StaticClass(), SpawnTransform, nullptr, nullptr,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Node)
+		{
+			Node->SetResourceType(Type);
+			Node->FinishSpawning(SpawnTransform);
+		}
+	}
+}
+
+void AEveraCharacter::Interact()
+{
+	if (!FollowCamera)
+	{
+		return;
+	}
+
+	// Trace forward from the camera; if we're looking at a resource node, gather it.
+	const FVector Start = FollowCamera->GetComponentLocation();
+	const FVector End = Start + FollowCamera->GetForwardVector() * InteractDistance;
+
+	FHitResult Hit;
+	FCollisionQueryParams Params(FName(TEXT("Interact")), /*bTraceComplex=*/false, this);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+	{
+		if (AResourceNode* Node = Cast<AResourceNode>(Hit.GetActor()))
+		{
+			ServerGather(Node);
+		}
+	}
+}
+
+void AEveraCharacter::ServerGather_Implementation(AResourceNode* Node)
+{
+	if (!Node)
+	{
+		return;
+	}
+
+	// Basic validation: the node must be within reach of the character.
+	if (FVector::Dist(GetActorLocation(), Node->GetActorLocation()) > MaxGatherDistance)
+	{
+		return;
+	}
+
+	Node->Gather(this);
 }
 
 void AEveraCharacter::DoMove(float Right, float Forward)

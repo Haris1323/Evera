@@ -10,6 +10,8 @@
 class USpringArmComponent;
 class UCameraComponent;
 class USurvivalStatsComponent;
+class UInventoryComponent;
+class AResourceNode;
 class UInputAction;
 struct FInputActionValue;
 
@@ -35,6 +37,10 @@ class AEveraCharacter : public ACharacter
 	/** Tracks the character's needs: health, hunger, thirst, energy */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
 	USurvivalStatsComponent* SurvivalStats;
+
+	/** Holds resources the character has gathered */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Survival", meta = (AllowPrivateAccess = "true"))
+	UInventoryComponent* Inventory;
 
 protected:
 
@@ -89,6 +95,29 @@ public:
 	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
+
+protected:
+
+	/** How far in front of the camera the interact look-trace reaches (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	float InteractDistance = 800.f;
+
+	/** Max distance from the character to a node for a gather to be valid (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	float MaxGatherDistance = 500.f;
+
+	virtual void BeginPlay() override;
+
+	/** Prototype helper: spawn a ring of gatherable nodes around the player on start. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	bool bSpawnTestResourceNodes = true;
+
+	/** Interact with whatever the player is looking at (bound to the E key). */
+	void Interact();
+
+	/** Server RPC that performs the authoritative gather. */
+	UFUNCTION(Server, Reliable)
+	void ServerGather(AResourceNode* Node);
 
 public:
 
