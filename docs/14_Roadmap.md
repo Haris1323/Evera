@@ -5,15 +5,15 @@
 
 ---
 
-## ✅ Faza 0 — Setup (u toku)
+## ✅ Faza 0 — Setup (ZAVRŠENO)
 
 - [x] Instaliran Unreal Engine 5.8
 - [x] Instaliran Git + Git LFS
 - [x] Napravljena repo struktura + dokumentacija
-- [ ] Instaliran Visual Studio (Game development with C++)
-- [ ] Napravljen UE C++ projekat "Evera" (Third Person template) u `game/`
-- [ ] Git repo povezan sa GitHub-om (+ LFS)
-- [ ] Prvi build prolazi (zeleno)
+- [x] Instaliran Visual Studio 2026 (Game development with C++)
+- [x] Napravljen UE C++ projekat "Evera" (Third Person template) u `game/`
+- [x] Git repo povezan sa GitHub-om (+ LFS)
+- [x] Prvi build prolazi (zeleno) ✅
 
 ## 🎯 Evera 0.1 — Preživljavanje
 
