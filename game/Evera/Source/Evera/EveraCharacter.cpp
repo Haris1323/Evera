@@ -129,7 +129,6 @@ void AEveraCharacter::BeginPlay()
 	for (int32 i = 0; i < NumNodes; ++i)
 	{
 		const EResourceType Type = (i % 2 == 0) ? EResourceType::Wood : EResourceType::Stone;
-		const float HalfHeight = (Type == EResourceType::Wood) ? 100.f : 40.f;
 
 		const float Angle = (2.f * PI * i) / NumNodes;
 		const FVector Dir(FMath::Cos(Angle), FMath::Sin(Angle), 0.f);
@@ -142,11 +141,8 @@ void AEveraCharacter::BeginPlay()
 		FCollisionQueryParams GroundParams(FName(TEXT("NodeGround")), false, this);
 		if (GetWorld()->LineTraceSingleByChannel(Ground, TraceStart, TraceEnd, ECC_Visibility, GroundParams))
 		{
-			SpawnLocation.Z = Ground.ImpactPoint.Z + HalfHeight;
-		}
-		else
-		{
-			SpawnLocation.Z += HalfHeight;
+			// Place the node's base on the ground (meshes are base-pivoted).
+			SpawnLocation.Z = Ground.ImpactPoint.Z;
 		}
 
 		const FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);

@@ -2,31 +2,54 @@
 
 #include "ResourceNode.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/BoxComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "InventoryComponent.h"
 #include "SkillsComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
+
+// Art asset paths. Loaded lazily at runtime (loading skeletal meshes in the
+// constructor/CDO phase crashes the engine). Missing assets -> cube fallback.
+namespace
+{
+	const TCHAR* StoneMeshPath = TEXT("/Game/Fab/Stone_-_photogrammetry/stone_photogrammetry/StaticMeshes/stone_photogrammetry.stone_photogrammetry");
+	const TCHAR* TreeMeshPath  = TEXT("/Game/Megaplant_Library/Tree_Norway_Spruce/Tree_Norway_Spruce_01/Tree_Norway_Spruce_01_A.Tree_Norway_Spruce_01_A");
+}
 
 AResourceNode::AResourceNode()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
+	// Root static mesh: rock (stone) or a fallback cube.
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	SetRootComponent(Mesh);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
 
-	// Default to a basic engine cube so the node is visible without any setup.
-	// Designers can swap this for a tree/rock mesh later.
+	// The cube is the only asset safe to load in the constructor.
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (CubeMesh.Succeeded())
 	{
 		Mesh->SetStaticMesh(CubeMesh.Object);
 	}
 
-	// Block the visibility channel so the player's look-trace can hit it.
-	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+	// Skeletal visual for tree nodes (no collision; the box handles interaction).
+	TreeMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TreeMesh"));
+	TreeMesh->SetupAttachment(Mesh);
+	TreeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TreeMesh->SetVisibility(false);
+
+	// Invisible trunk collider for reliable look-to-interact on trees.
+	Collider = CreateDefaultSubobject<UBoxComponent>(TEXT("Collider"));
+	Collider->SetupAttachment(Mesh);
+	Collider->SetBoxExtent(FVector(60.f, 60.f, 300.f));
+	Collider->SetRelativeLocation(FVector(0.f, 0.f, 300.f));
+	Collider->SetCollisionResponseToAllChannels(ECR_Block);
+	Collider->SetCollisionEnabled(ECollisionEnabled::NoCollision); // enabled per-type in BeginPlay
 }
 
 void AResourceNode::BeginPlay()
@@ -38,12 +61,62 @@ void AResourceNode::BeginPlay()
 		RemainingAmount = TotalAmount;
 	}
 
-	// Give wood and stone slightly different shapes so they're distinguishable
-	// until real meshes are assigned: wood = tall (log), stone = squat (boulder).
+	ApplyVisualsForType();
+}
+
+void AResourceNode::ApplyVisualsForType()
+{
+	if (ResourceType == EResourceType::Wood)
+	{
+		// Load the tree at runtime (safe, unlike in the constructor).
+		if (USkeletalMesh* Tree = LoadObject<USkeletalMesh>(nullptr, TreeMeshPath))
+		{
+			const float Scale = FMath::FRandRange(TreeScaleMin, TreeScaleMax);
+			TreeMesh->SetSkeletalMeshAsset(Tree);
+			TreeMesh->SetVisibility(true);
+			TreeMesh->SetRelativeScale3D(FVector(Scale));
+
+			Mesh->SetVisibility(false);
+			Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Size the invisible collider to roughly match the tree's height.
+			const float ColliderHeight = FMath::Max(150.f, 1500.f * Scale);
+			Collider->SetBoxExtent(FVector(50.f, 50.f, ColliderHeight * 0.5f));
+			Collider->SetRelativeLocation(FVector(0.f, 0.f, ColliderHeight * 0.5f));
+			Collider->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			Collider->SetCollisionResponseToAllChannels(ECR_Block);
+			return;
+		}
+	}
+	else // Stone
+	{
+		if (UStaticMesh* Rock = LoadObject<UStaticMesh>(nullptr, StoneMeshPath))
+		{
+			const float Scale = FMath::FRandRange(StoneScaleMin, StoneScaleMax);
+			Mesh->SetStaticMesh(Rock);
+			Mesh->SetVisibility(true);
+			Mesh->SetRelativeScale3D(FVector(Scale));
+			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+
+			TreeMesh->SetVisibility(false);
+			Collider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			return;
+		}
+	}
+
+	// Fallback: coloured cube distinguishing wood (tall) from stone (squat).
 	const FVector Scale = (ResourceType == EResourceType::Wood)
 		? FVector(0.6f, 0.6f, 2.0f)
 		: FVector(1.4f, 1.4f, 0.8f);
-	Mesh->SetWorldScale3D(Scale);
+
+	Mesh->SetVisibility(true);
+	Mesh->SetRelativeScale3D(Scale);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+
+	TreeMesh->SetVisibility(false);
+	Collider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AResourceNode::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
