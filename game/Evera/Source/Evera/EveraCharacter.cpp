@@ -16,6 +16,7 @@
 #include "CraftingComponent.h"
 #include "EveraHUD.h"
 #include "ResourceNode.h"
+#include "ForestSpawner.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
@@ -80,6 +81,11 @@ AEveraCharacter::AEveraCharacter()
 	HeldAxe->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HeldAxe->SetVisibility(false);
 
+	// Create the backpack mesh, worn on the back.
+	Backpack = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Backpack"));
+	Backpack->SetupAttachment(GetMesh(), BackpackSocket);
+	Backpack->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
@@ -140,13 +146,22 @@ void AEveraCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	// Set up the held axe: load the mesh, place it in the hand, hide until crafted.
-	if (UStaticMesh* AxeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Evera/Items/SM_EVERA_Axe_combined/StaticMeshes/SM_EVERA_Axe.SM_EVERA_Axe")))
+	if (UStaticMesh* AxeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Evera/Items/SM_EVERA_HeroAxe_Pro/StaticMeshes/SM_EVERA_HeroAxe_Pro.SM_EVERA_HeroAxe_Pro")))
 	{
 		HeldAxe->SetStaticMesh(AxeMesh);
 	}
 	HeldAxe->SetRelativeLocation(AxeGripLocation);
 	HeldAxe->SetRelativeRotation(AxeGripRotation);
 	HeldAxe->SetRelativeScale3D(FVector(AxeGripScale));
+
+	// Set up the backpack on the back.
+	if (UStaticMesh* BackpackMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Evera/Items/SM_EVERA_AdventureBackpack_Pro/StaticMeshes/SM_EVERA_AdventureBackpack_Pro.SM_EVERA_AdventureBackpack_Pro")))
+	{
+		Backpack->SetStaticMesh(BackpackMesh);
+	}
+	Backpack->SetRelativeLocation(BackpackLocation);
+	Backpack->SetRelativeRotation(BackpackRotation);
+	Backpack->SetRelativeScale3D(FVector(BackpackScale));
 	if (Crafting)
 	{
 		Crafting->OnCraftingChanged.AddDynamic(this, &AEveraCharacter::UpdateHeldAxe);
@@ -161,6 +176,9 @@ void AEveraCharacter::BeginPlay()
 	{
 		return;
 	}
+
+	// Turn the empty level into a forest around the player (Pro trees + rocks).
+	GetWorld()->SpawnActor<AForestSpawner>(AForestSpawner::StaticClass(), FTransform(GetActorLocation()));
 
 	// Prototype convenience: drop a ring of gatherable nodes around the player so
 	// there is something to harvest without hand-placing actors in the level.

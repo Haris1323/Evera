@@ -59,6 +59,10 @@ class AEveraCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Equipment", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* HeldAxe;
 
+	/** Adventurer backpack worn on the back. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Equipment", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* Backpack;
+
 protected:
 
 	/** Jump Input Action */
@@ -162,10 +166,23 @@ protected:
 	FVector AxeGripLocation = FVector(0.f, 0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category="Equipment")
-	FRotator AxeGripRotation = FRotator(0.f, 0.f, 180.f);
+	FRotator AxeGripRotation = FRotator(0.f, 0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category="Equipment")
-	float AxeGripScale = 0.01f;
+	float AxeGripScale = 1.0f;
+
+	/** Backpack attachment (bone/socket + transform on the back; tune to fit). */
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FName BackpackSocket = TEXT("spine_05");
+
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FVector BackpackLocation = FVector(0.f, -16.f, 0.f);
+
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	FRotator BackpackRotation = FRotator(90.f, 0.f, 180.f);
+
+	UPROPERTY(EditAnywhere, Category="Equipment")
+	float BackpackScale = 1.0f;
 
 	/** Show/hide the held axe based on whether the player owns one. */
 	UFUNCTION()
