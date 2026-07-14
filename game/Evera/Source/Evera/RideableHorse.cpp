@@ -29,7 +29,10 @@ ARideableHorse::ARideableHorse()
 	SkelMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SkelMesh->SetCollisionResponseToAllChannels(ECR_Block);
 	SkelMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	SkelMesh->SetVisibility(false);
+	// Don't start hidden — a hidden skeletal mesh freezes its pose. Always tick the
+	// pose so the legs animate; the static-model branch hides this in BeginPlay.
+	SkelMesh->bEnableUpdateRateOptimizations = false;
+	SkelMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
 	SaddlePoint = CreateDefaultSubobject<USceneComponent>(TEXT("SaddlePoint"));
 	SaddlePoint->SetupAttachment(Root);
@@ -45,11 +48,9 @@ void ARideableHorse::BeginPlay()
 	{
 		bRigged = true;
 		SkelMesh->SetSkeletalMeshAsset(Skel);
-		SkelMesh->SetVisibility(true);
 		HorseMesh->SetVisibility(false);
 		HorseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SkelMesh->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
-		SkelMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		SkelMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 
 		const FBoxSphereBounds B = Skel->GetBounds();
@@ -70,6 +71,7 @@ void ARideableHorse::BeginPlay()
 	}
 	else
 	{
+		SkelMesh->SetVisibility(false); // static fallback: keep the empty rig hidden
 		if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *HorseMeshPath))
 		{
 			HorseMesh->SetStaticMesh(Mesh);

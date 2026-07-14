@@ -390,7 +390,7 @@ protected:
 	 *  the capsule bottom so the feet plant on the ground through the movement
 	 *  component's small floor-hover, instead of floating just above it. */
 	UPROPERTY(EditAnywhere, Category="Hero")
-	FVector HeroMeshOffset = FVector(0.f, 0.f, -80.f);
+	FVector HeroMeshOffset = FVector(0.f, 0.f, -82.f);
 
 	UPROPERTY(EditAnywhere, Category="Hero")
 	FRotator HeroMeshRotation = FRotator(0.f, -90.f, 0.f);

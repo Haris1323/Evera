@@ -30,7 +30,11 @@ ACompanionPet::ACompanionPet()
 	SkelBody = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkelBody"));
 	SkelBody->SetupAttachment(PetRoot);
 	SkelBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SkelBody->SetVisibility(false);
+	// Do NOT start hidden: a skeletal mesh that begins hidden gets its pose frozen
+	// (this is exactly why Lea's legs weren't moving). An empty SkelBody with no
+	// mesh renders nothing anyway; the box-dog branch hides it explicitly.
+	SkelBody->bEnableUpdateRateOptimizations = false; // never throttle the anim rate
+	SkelBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 }
 
 void ACompanionPet::BeginPlay()
@@ -56,12 +60,8 @@ void ACompanionPet::BeginPlay()
 	{
 		bRigged = true;
 		SkelBody->SetSkeletalMeshAsset(DogSkel);
-		SkelBody->SetVisibility(true);
 		SkelBody->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
 		BodyMesh->SetVisibility(false);
-		// Always animate, even if the engine thinks she's briefly off-screen — the
-		// component started hidden, which otherwise leaves the pose frozen.
-		SkelBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		SkelBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 
 		// Auto-fit the dog to a small, kid-friendly size and seat her on the ground.
@@ -82,6 +82,7 @@ void ACompanionPet::BeginPlay()
 	{
 		// No dog model yet: build a recognisable little box-dog so follow + tips can
 		// be tested. Its legs reach the ground at the actor origin, so FootOffset = 0.
+		SkelBody->SetVisibility(false); // empty anyway, but keep it out of the way
 		BuildStandInDog();
 		FootOffset = 0.f;
 	}
