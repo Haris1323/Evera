@@ -331,30 +331,44 @@ void AEveraCharacter::BeginPlay()
 		HorseSP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		GetWorld()->SpawnActor<ARideableHorse>(ARideableHorse::StaticClass(), FTransform(FRotator::ZeroRotator, HorsePos), HorseSP);
 
-		// A few deer roaming nearby — a new tameable species for the farm
-		// (stylized + animated, from the Animals_Free pack).
-		for (int32 i = 0; i < 3; ++i)
+		// Populate the world with a mix of stylized, animated, tameable animals
+		// (Animals_Free pack). Each is an AWanderingAnimal pointed at its species;
+		// the player can tame any of them (E) onto their farm.
+		struct FSpeciesSpawn { const TCHAR* Name; float CapHalf; float CapRadius; int32 Count; };
+		static const FSpeciesSpawn Species[] = {
+			{ TEXT("Deer"),    80.f, 45.f, 2 },
+			{ TEXT("Chicken"), 26.f, 18.f, 3 },
+			{ TEXT("Kitty"),   24.f, 16.f, 2 },
+			{ TEXT("Pinguin"), 36.f, 22.f, 2 },
+			{ TEXT("Tiger"),   75.f, 55.f, 1 },
+		};
+		int32 AnimalIdx = 0;
+		for (const FSpeciesSpawn& Sp : Species)
 		{
-			const float Ang = (2.f * PI * i) / 3.f + 0.6f;
-			FVector DeerPos = GetActorLocation() + FVector(FMath::Cos(Ang) * 900.f, FMath::Sin(Ang) * 900.f, 0.f);
-			FHitResult DG;
-			FCollisionQueryParams DGP(FName(TEXT("DeerSpawn")), false, this);
-			if (GetWorld()->LineTraceSingleByChannel(DG, DeerPos + FVector(0, 0, 3000), DeerPos - FVector(0, 0, 6000), ECC_Visibility, DGP))
+			for (int32 c = 0; c < Sp.Count; ++c)
 			{
-				DeerPos.Z = DG.ImpactPoint.Z + 90.f;
-			}
-			const FTransform DeerXform(FRotator::ZeroRotator, DeerPos);
-			AWanderingAnimal* Deer = GetWorld()->SpawnActorDeferred<AWanderingAnimal>(
-				AWanderingAnimal::StaticClass(), DeerXform, nullptr, nullptr,
-				ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-			if (Deer)
-			{
-				Deer->ConfigureSpecies(
-					TEXT("/Game/Animals_Free/Animals/Meshes/SKM_Deer_001.SKM_Deer_001"),
-					TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Deer_001_Anim_Deer_001_walk.ANIM_Deer_001_Anim_Deer_001_walk"),
-					TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Deer_001_Anim_Deer_001_idle.ANIM_Deer_001_Anim_Deer_001_idle"),
-					TEXT("Deer"), 0.f, 80.f, 45.f);
-				Deer->FinishSpawning(DeerXform);
+				++AnimalIdx;
+				const float Ang = 0.7f * AnimalIdx;
+				const float Rad = 700.f + 90.f * (AnimalIdx % 7);
+				FVector Pos = GetActorLocation() + FVector(FMath::Cos(Ang) * Rad, FMath::Sin(Ang) * Rad, 0.f);
+				FHitResult G;
+				FCollisionQueryParams GP(FName(TEXT("AnimalSpawn")), false, this);
+				if (GetWorld()->LineTraceSingleByChannel(G, Pos + FVector(0, 0, 3000), Pos - FVector(0, 0, 6000), ECC_Visibility, GP))
+				{
+					Pos.Z = G.ImpactPoint.Z + Sp.CapHalf;
+				}
+				const FTransform Xf(FRotator::ZeroRotator, Pos);
+				AWanderingAnimal* A = GetWorld()->SpawnActorDeferred<AWanderingAnimal>(
+					AWanderingAnimal::StaticClass(), Xf, nullptr, nullptr,
+					ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+				if (A)
+				{
+					const FString MeshP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Meshes/SKM_%s_001.SKM_%s_001"), Sp.Name, Sp.Name);
+					const FString WalkP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Animations/ANIM_%s_001_Anim_%s_001_walk.ANIM_%s_001_Anim_%s_001_walk"), Sp.Name, Sp.Name, Sp.Name, Sp.Name);
+					const FString IdleP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Animations/ANIM_%s_001_Anim_%s_001_idle.ANIM_%s_001_Anim_%s_001_idle"), Sp.Name, Sp.Name, Sp.Name, Sp.Name);
+					A->ConfigureSpecies(MeshP, WalkP, IdleP, Sp.Name, 0.f, Sp.CapHalf, Sp.CapRadius);
+					A->FinishSpawning(Xf);
+				}
 			}
 		}
 
