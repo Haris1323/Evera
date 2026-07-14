@@ -553,12 +553,26 @@ void AEveraCharacter::Mount(ARideableHorse* Horse)
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	AttachToComponent(Horse->GetSaddlePoint(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	SetActorRelativeRotation(FRotator::ZeroRotator);
+
+	// Pull the camera back and up so the whole horse + rider are in view.
+	if (CameraBoom)
+	{
+		CameraBoom->TargetArmLength = 800.f;
+		CameraBoom->SocketOffset = FVector(0.f, 0.f, 90.f);
+	}
 }
 
 void AEveraCharacter::Dismount()
 {
 	bMounted = false;
 	MountMoveInput = FVector2D::ZeroVector;
+
+	// Restore the normal third-person camera framing.
+	if (CameraBoom)
+	{
+		CameraBoom->TargetArmLength = 400.f;
+		CameraBoom->SocketOffset = FVector::ZeroVector;
+	}
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 

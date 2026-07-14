@@ -75,8 +75,9 @@ void ACompanionPet::BeginPlay()
 
 void ACompanionPet::BuildStandInDog()
 {
-	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (!Cube)
+	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	if (!Sphere)
 	{
 		return;
 	}
@@ -87,37 +88,41 @@ void ACompanionPet::BuildStandInDog()
 		Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	}
 	UMaterialInstanceDynamic* Brown = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr;
-	if (Brown) { Brown->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.40f, 0.24f, 0.11f)); }
+	if (Brown) { Brown->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.44f, 0.26f, 0.12f)); }
 	UMaterialInstanceDynamic* Dark = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr;
-	if (Dark) { Dark->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.10f, 0.07f, 0.04f)); }
+	if (Dark) { Dark->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.09f, 0.06f, 0.03f)); }
 
-	auto Part = [&](FVector Loc, FVector Scale, UMaterialInterface* M)
+	auto Part = [&](UStaticMesh* SM, FVector Loc, FRotator Rot, FVector Scale, UMaterialInterface* M)
 	{
+		if (!SM) { return; }
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 		C->SetupAttachment(PetRoot);
-		C->SetStaticMesh(Cube);
+		C->SetStaticMesh(SM);
 		C->SetRelativeLocation(Loc);
+		C->SetRelativeRotation(Rot);
 		C->SetRelativeScale3D(Scale);
 		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		if (M) { C->SetMaterial(0, M); }
 		C->RegisterComponent();
 	};
 
-	// Torso reuses BodyMesh; everything else is an extra box. Dog faces +X.
-	BodyMesh->SetStaticMesh(Cube);
-	BodyMesh->SetRelativeLocation(FVector(0.f, 0.f, 30.f));
-	BodyMesh->SetRelativeScale3D(FVector(0.52f, 0.28f, 0.28f));
+	// Rounded puppy: soft sphere body + head, little cylinder legs. Dog faces +X.
+	BodyMesh->SetStaticMesh(Sphere);
+	BodyMesh->SetRelativeLocation(FVector(0.f, 0.f, 32.f));
+	BodyMesh->SetRelativeScale3D(FVector(0.60f, 0.34f, 0.36f));
 	if (Brown) { BodyMesh->SetMaterial(0, Brown); }
 
-	Part(FVector(34.f, 0.f, 40.f), FVector(0.26f, 0.24f, 0.24f), Brown);   // head
-	Part(FVector(48.f, 0.f, 36.f), FVector(0.16f, 0.13f, 0.11f), Dark);    // snout
-	Part(FVector(30.f, 9.f, 54.f), FVector(0.06f, 0.05f, 0.12f), Brown);   // ear L
-	Part(FVector(30.f, -9.f, 54.f), FVector(0.06f, 0.05f, 0.12f), Brown);  // ear R
-	Part(FVector(18.f, 10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown);  // leg front-L
-	Part(FVector(18.f, -10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown); // leg front-R
-	Part(FVector(-18.f, 10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown); // leg back-L
-	Part(FVector(-18.f, -10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown);// leg back-R
-	Part(FVector(-32.f, 0.f, 44.f), FVector(0.24f, 0.06f, 0.06f), Brown);  // tail
+	Part(Sphere, FVector(36.f, 0.f, 44.f), FRotator::ZeroRotator, FVector(0.34f, 0.32f, 0.32f), Brown); // head
+	Part(Sphere, FVector(50.f, 0.f, 40.f), FRotator::ZeroRotator, FVector(0.17f, 0.15f, 0.14f), Dark);  // snout
+	Part(Sphere, FVector(48.f, 8.f, 44.f), FRotator::ZeroRotator, FVector(0.05f, 0.05f, 0.05f), Dark);  // eye L
+	Part(Sphere, FVector(48.f, -8.f, 44.f), FRotator::ZeroRotator, FVector(0.05f, 0.05f, 0.05f), Dark); // eye R
+	Part(Sphere, FVector(30.f, 11.f, 58.f), FRotator::ZeroRotator, FVector(0.08f, 0.05f, 0.14f), Brown);// ear L
+	Part(Sphere, FVector(30.f, -11.f, 58.f), FRotator::ZeroRotator, FVector(0.08f, 0.05f, 0.14f), Brown);// ear R
+	Part(Cyl, FVector(20.f, 12.f, 12.f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 0.24f), Brown);   // leg front-L
+	Part(Cyl, FVector(20.f, -12.f, 12.f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 0.24f), Brown);  // leg front-R
+	Part(Cyl, FVector(-18.f, 12.f, 12.f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 0.24f), Brown);  // leg back-L
+	Part(Cyl, FVector(-18.f, -12.f, 12.f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 0.24f), Brown); // leg back-R
+	Part(Cyl, FVector(-34.f, 0.f, 46.f), FRotator(50.f, 0.f, 0.f), FVector(0.06f, 0.06f, 0.26f), Brown);// tail
 }
 
 void ACompanionPet::Tick(float DeltaSeconds)
