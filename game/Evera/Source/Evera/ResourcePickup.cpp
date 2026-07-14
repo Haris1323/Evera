@@ -44,22 +44,39 @@ void AResourcePickup::ApplyLook()
 		return;
 	}
 
-	// A small, flat-ish chunk sitting on the ground.
+	// Give each resource an unmistakable shape so kids know what they're grabbing:
+	// wood is a brown log (a cylinder laid on its side), stone is a grey boulder.
 	if (ResourceType == EResourceType::Wood)
 	{
-		Mesh->SetRelativeScale3D(FVector(0.5f, 0.18f, 0.18f)); // a stick/log
+		if (UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")))
+		{
+			Mesh->SetStaticMesh(Cyl);
+		}
+		Mesh->SetRelativeRotation(FRotator(90.f, 0.f, 0.f)); // lay the log down
+		Mesh->SetRelativeScale3D(FVector(0.28f, 0.28f, 0.6f));
 	}
 	else
 	{
-		Mesh->SetRelativeScale3D(FVector(0.35f, 0.35f, 0.25f)); // a lump of stone
+		if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
+		{
+			Mesh->SetStaticMesh(Sphere);
+		}
+		Mesh->SetRelativeRotation(FRotator::ZeroRotator);
+		Mesh->SetRelativeScale3D(FVector(0.5f, 0.42f, 0.34f)); // a squat rock
 	}
 
-	UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	// Our own tint material actually honours the "Color" parameter (the engine's
+	// BasicShapeMaterial does not in 5.8), so wood really looks brown, stone grey.
+	UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Evera/Materials/M_EveraTint.M_EveraTint"));
+	if (!Base)
+	{
+		Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	}
 	if (UMaterialInstanceDynamic* MID = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr)
 	{
 		MID->SetVectorParameterValue(TEXT("Color"), ResourceType == EResourceType::Wood
-			? FLinearColor(0.42f, 0.28f, 0.14f)
-			: FLinearColor(0.5f, 0.5f, 0.52f));
+			? FLinearColor(0.40f, 0.24f, 0.10f)
+			: FLinearColor(0.52f, 0.53f, 0.56f));
 		Mesh->SetMaterial(0, MID);
 	}
 }

@@ -255,7 +255,11 @@ void AEveraCharacter::BeginPlay()
 	// Give the flies a tiny dark-sphere look.
 	if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
 	{
-		UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Evera/Materials/M_EveraTint.M_EveraTint"));
+		if (!BaseMat)
+		{
+			BaseMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		}
 		UMaterialInstanceDynamic* FlyMID = BaseMat ? UMaterialInstanceDynamic::Create(BaseMat, this) : nullptr;
 		if (FlyMID)
 		{

@@ -61,7 +61,12 @@ void ACampfire::BeginPlay()
 		FlameMesh->SetStaticMesh(Sphere);
 		FlameMesh->SetRelativeLocation(FVector(0.f, 0.f, 55.f));
 		FlameMesh->SetRelativeScale3D(FVector(0.6f, 0.6f, 0.95f));
-		if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Evera/Materials/M_EveraTint.M_EveraTint"));
+		if (!Base)
+		{
+			Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		}
+		if (Base)
 		{
 			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this))
 			{

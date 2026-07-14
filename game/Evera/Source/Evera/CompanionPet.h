@@ -93,6 +93,9 @@ private:
 	/** Pick the most useful tip for the player's current progress. */
 	FString ChooseTip();
 
+	/** Build a little box-dog stand-in when no real dog model is imported yet. */
+	void BuildStandInDog();
+
 	void FollowOwner(float DeltaSeconds);
 	void GroundStick();
 

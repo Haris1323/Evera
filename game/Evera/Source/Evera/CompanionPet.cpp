@@ -36,53 +36,34 @@ void ACompanionPet::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Prefer a static dog mesh; fall back to a skeletal one; finally a stand-in.
+	// Prefer a static dog mesh; fall back to a skeletal one; finally a box stand-in.
 	UStaticMesh* Dog = LoadObject<UStaticMesh>(nullptr, *DogMeshPath);
 	USkeletalMesh* DogSkel = Dog ? nullptr : LoadObject<USkeletalMesh>(nullptr, *DogSkelMeshPath);
 
 	if (Dog)
 	{
 		BodyMesh->SetStaticMesh(Dog);
+		const FBox Local = Dog->GetBoundingBox();
+		const float RawHeight = Local.GetSize().Z;
+		if (RawHeight > 1.f)
+		{
+			BodyMesh->SetRelativeScale3D(FVector(TargetHeight / RawHeight));
+		}
+		FootOffset = -Local.Min.Z * BodyMesh->GetRelativeScale3D().Z;
 	}
 	else if (DogSkel)
 	{
 		SkelBody->SetSkeletalMeshAsset(DogSkel);
 		SkelBody->SetVisibility(true);
 		BodyMesh->SetVisibility(false);
+		FootOffset = 0.f;
 	}
 	else
 	{
-		// Visible stand-in so follow + tips can be tested before the dog is imported:
-		// a small warm-brown capsule-ish shape (sphere body).
-		if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
-		{
-			BodyMesh->SetStaticMesh(Sphere);
-			BodyMesh->SetRelativeScale3D(FVector(0.7f, 0.45f, 0.5f));
-			if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
-			{
-				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this))
-				{
-					MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.42f, 0.26f, 0.13f)); // brown dog
-					BodyMesh->SetMaterial(0, MID);
-				}
-			}
-		}
-	}
-
-	// Auto-fit the dog to a small, kid-friendly size and seat her on the ground.
-	if (BodyMesh->GetStaticMesh() && BodyMesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Lea")))
-	{
-		const FBox Local = BodyMesh->GetStaticMesh()->GetBoundingBox();
-		const float RawHeight = Local.GetSize().Z;
-		if (RawHeight > 1.f)
-		{
-			BodyMesh->SetRelativeScale3D(FVector(TargetHeight / RawHeight));
-		}
-	}
-	if (BodyMesh->GetStaticMesh())
-	{
-		const FBox Local = BodyMesh->GetStaticMesh()->GetBoundingBox();
-		FootOffset = -Local.Min.Z * BodyMesh->GetRelativeScale3D().Z;
+		// No dog model yet: build a recognisable little box-dog so follow + tips can
+		// be tested. Its legs reach the ground at the actor origin, so FootOffset = 0.
+		BuildStandInDog();
+		FootOffset = 0.f;
 	}
 
 	if (GetWorld())
@@ -90,6 +71,53 @@ void ACompanionPet::BeginPlay()
 		NextTipTime = GetWorld()->GetTimeSeconds() + 2.5f; // greet shortly after spawn
 	}
 	GroundStick();
+}
+
+void ACompanionPet::BuildStandInDog()
+{
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Cube)
+	{
+		return;
+	}
+
+	UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Evera/Materials/M_EveraTint.M_EveraTint"));
+	if (!Base)
+	{
+		Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	}
+	UMaterialInstanceDynamic* Brown = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr;
+	if (Brown) { Brown->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.40f, 0.24f, 0.11f)); }
+	UMaterialInstanceDynamic* Dark = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr;
+	if (Dark) { Dark->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.10f, 0.07f, 0.04f)); }
+
+	auto Part = [&](FVector Loc, FVector Scale, UMaterialInterface* M)
+	{
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(PetRoot);
+		C->SetStaticMesh(Cube);
+		C->SetRelativeLocation(Loc);
+		C->SetRelativeScale3D(Scale);
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (M) { C->SetMaterial(0, M); }
+		C->RegisterComponent();
+	};
+
+	// Torso reuses BodyMesh; everything else is an extra box. Dog faces +X.
+	BodyMesh->SetStaticMesh(Cube);
+	BodyMesh->SetRelativeLocation(FVector(0.f, 0.f, 30.f));
+	BodyMesh->SetRelativeScale3D(FVector(0.52f, 0.28f, 0.28f));
+	if (Brown) { BodyMesh->SetMaterial(0, Brown); }
+
+	Part(FVector(34.f, 0.f, 40.f), FVector(0.26f, 0.24f, 0.24f), Brown);   // head
+	Part(FVector(48.f, 0.f, 36.f), FVector(0.16f, 0.13f, 0.11f), Dark);    // snout
+	Part(FVector(30.f, 9.f, 54.f), FVector(0.06f, 0.05f, 0.12f), Brown);   // ear L
+	Part(FVector(30.f, -9.f, 54.f), FVector(0.06f, 0.05f, 0.12f), Brown);  // ear R
+	Part(FVector(18.f, 10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown);  // leg front-L
+	Part(FVector(18.f, -10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown); // leg front-R
+	Part(FVector(-18.f, 10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown); // leg back-L
+	Part(FVector(-18.f, -10.f, 13.f), FVector(0.09f, 0.09f, 0.28f), Brown);// leg back-R
+	Part(FVector(-32.f, 0.f, 44.f), FVector(0.24f, 0.06f, 0.06f), Brown);  // tail
 }
 
 void ACompanionPet::Tick(float DeltaSeconds)
