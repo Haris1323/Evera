@@ -28,6 +28,11 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Point this animal at a different species (mesh + walk/graze clips + name).
+	 *  Call before FinishSpawning so BeginPlay loads the right assets. */
+	void ConfigureSpecies(const FString& InMesh, const FString& InWalk, const FString& InGraze,
+		const FString& InName, float InYaw, float InCapsuleHalf, float InCapsuleRadius);
+
 	/** Tame this animal so it joins the player's farm and follows them around. */
 	void Tame(ACharacter* NewOwner);
 

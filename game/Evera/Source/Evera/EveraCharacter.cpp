@@ -331,6 +331,33 @@ void AEveraCharacter::BeginPlay()
 		HorseSP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		GetWorld()->SpawnActor<ARideableHorse>(ARideableHorse::StaticClass(), FTransform(FRotator::ZeroRotator, HorsePos), HorseSP);
 
+		// A few deer roaming nearby — a new tameable species for the farm
+		// (stylized + animated, from the Animals_Free pack).
+		for (int32 i = 0; i < 3; ++i)
+		{
+			const float Ang = (2.f * PI * i) / 3.f + 0.6f;
+			FVector DeerPos = GetActorLocation() + FVector(FMath::Cos(Ang) * 900.f, FMath::Sin(Ang) * 900.f, 0.f);
+			FHitResult DG;
+			FCollisionQueryParams DGP(FName(TEXT("DeerSpawn")), false, this);
+			if (GetWorld()->LineTraceSingleByChannel(DG, DeerPos + FVector(0, 0, 3000), DeerPos - FVector(0, 0, 6000), ECC_Visibility, DGP))
+			{
+				DeerPos.Z = DG.ImpactPoint.Z + 90.f;
+			}
+			const FTransform DeerXform(FRotator::ZeroRotator, DeerPos);
+			AWanderingAnimal* Deer = GetWorld()->SpawnActorDeferred<AWanderingAnimal>(
+				AWanderingAnimal::StaticClass(), DeerXform, nullptr, nullptr,
+				ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			if (Deer)
+			{
+				Deer->ConfigureSpecies(
+					TEXT("/Game/Animals_Free/Animals/Meshes/SKM_Deer_001.SKM_Deer_001"),
+					TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Deer_001_Anim_Deer_001_walk.ANIM_Deer_001_Anim_Deer_001_walk"),
+					TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Deer_001_Anim_Deer_001_idle.ANIM_Deer_001_Anim_Deer_001_idle"),
+					TEXT("Deer"), 0.f, 80.f, 45.f);
+				Deer->FinishSpawning(DeerXform);
+			}
+		}
+
 		// Start the day/night cycle (only one driver for the whole world).
 		bool bHasTime = false;
 		for (TActorIterator<AEveraTimeOfDay> It(GetWorld()); It; ++It) { bHasTime = true; TimeOfDay = *It; break; }

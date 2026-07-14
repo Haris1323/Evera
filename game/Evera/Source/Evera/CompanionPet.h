@@ -10,6 +10,7 @@ class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
 class ACharacter;
+class UAnimSequence;
 
 /**
  *  Lea — the player's companion dog. Every player gets their own Lea: she trots
@@ -54,12 +55,23 @@ protected:
 	USkeletalMeshComponent* SkelBody;
 
 	/** Content path of the dog mesh. Static mesh first; if that fails a skeletal
-	 *  mesh is tried; if both fail a small stand-in shape is shown. */
+	 *  mesh is tried; if both fail a small box-dog stand-in is shown. */
 	UPROPERTY(EditAnywhere, Category="Pet")
 	FString DogMeshPath = TEXT("/Game/Evera/Animals/Lea/SM_Lea.SM_Lea");
 
+	/** Rigged dog (Animals_Free pack) — Lea's real body, with walk/idle anims. */
 	UPROPERTY(EditAnywhere, Category="Pet")
-	FString DogSkelMeshPath = TEXT("/Game/Evera/Animals/Lea/SK_Lea.SK_Lea");
+	FString DogSkelMeshPath = TEXT("/Game/Animals_Free/Animals/Meshes/SKM_Dog_001.SKM_Dog_001");
+
+	UPROPERTY(EditAnywhere, Category="Pet")
+	FString DogWalkAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Dog_001_Anim_Dog_001_walk.ANIM_Dog_001_Anim_Dog_001_walk");
+
+	UPROPERTY(EditAnywhere, Category="Pet")
+	FString DogIdleAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Dog_001_Anim_Dog_001_idle.ANIM_Dog_001_Anim_Dog_001_idle");
+
+	/** Yaw added to the mesh facing (flip if the dog faces sideways when trotting). */
+	UPROPERTY(EditAnywhere, Category="Pet")
+	float MeshYawOffset = 0.f;
 
 	/** The dog is auto-scaled to about this tall (cm) — a small, kid-friendly pup. */
 	UPROPERTY(EditAnywhere, Category="Pet")
@@ -98,6 +110,16 @@ private:
 
 	void FollowOwner(float DeltaSeconds);
 	void GroundStick();
+
+	/** Swap walk/idle clips on the rigged dog based on movement (no AnimBP). */
+	void UpdateDogAnim(float DeltaSeconds);
+	void PlayDogClip(UAnimSequence* Clip);
+
+	bool bRigged = false;
+	UPROPERTY() UAnimSequence* WalkAnim = nullptr;
+	UPROPERTY() UAnimSequence* IdleAnim = nullptr;
+	UAnimSequence* CurrentAnim = nullptr;
+	FVector LastPos = FVector::ZeroVector;
 
 	float FootOffset = 0.f;
 	float NextTipTime = 0.f;

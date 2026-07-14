@@ -48,6 +48,18 @@ void AWanderingAnimal::BeginPlay()
 	PlayClip(WalkAnim);
 }
 
+void AWanderingAnimal::ConfigureSpecies(const FString& InMesh, const FString& InWalk, const FString& InGraze,
+	const FString& InName, float InYaw, float InCapsuleHalf, float InCapsuleRadius)
+{
+	MeshPath = InMesh;
+	WalkAnimPath = InWalk;
+	GrazeAnimPath = InGraze;
+	SpeciesName = InName;
+	MeshYawOffset = InYaw;
+	CapsuleHalfHeight = InCapsuleHalf;
+	CapsuleRadius = InCapsuleRadius;
+}
+
 void AWanderingAnimal::Tame(ACharacter* NewOwner)
 {
 	if (!HasAuthority() || !NewOwner)

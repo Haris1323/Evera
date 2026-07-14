@@ -59,16 +59,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Horse")
 	FString HorseMeshPath = TEXT("/Game/Evera/Animals/Horse/SM_Horse.SM_Horse");
 
-	/** Rigged skeletal model path (preferred; set when a stylized horse is added). */
+	/** Rigged skeletal model path (preferred). Stylized animated horse from the
+	 *  Animals_Free pack — replaces the static realistic model. */
 	UPROPERTY(EditAnywhere, Category="Horse")
-	FString SkelMeshPath = TEXT("/Game/Evera/Animals/Horse/SK_Horse.SK_Horse");
+	FString SkelMeshPath = TEXT("/Game/Animals_Free/Animals/Meshes/SKM_Horse_001.SKM_Horse_001");
 
 	/** Walk + idle clips for the rigged horse (played by movement, no AnimBP). */
 	UPROPERTY(EditAnywhere, Category="Horse")
-	FString WalkAnimPath = TEXT("/Game/Evera/Animals/Horse/A_Horse_Walk.A_Horse_Walk");
+	FString WalkAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Horse_001_Anim_Horse_001_walk.ANIM_Horse_001_Anim_Horse_001_walk");
 
 	UPROPERTY(EditAnywhere, Category="Horse")
-	FString IdleAnimPath = TEXT("/Game/Evera/Animals/Horse/A_Horse_Idle.A_Horse_Idle");
+	FString IdleAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Horse_001_Anim_Horse_001_idle.ANIM_Horse_001_Anim_Horse_001_idle");
 
 	/** Yaw added to the mesh facing (flip if a rigged horse faces sideways). */
 	UPROPERTY(EditAnywhere, Category="Horse")

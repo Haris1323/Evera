@@ -6,6 +6,7 @@
 #include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequence.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/Character.h"
@@ -53,10 +54,25 @@ void ACompanionPet::BeginPlay()
 	}
 	else if (DogSkel)
 	{
+		bRigged = true;
 		SkelBody->SetSkeletalMeshAsset(DogSkel);
 		SkelBody->SetVisibility(true);
+		SkelBody->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
 		BodyMesh->SetVisibility(false);
-		FootOffset = 0.f;
+
+		// Auto-fit the dog to a small, kid-friendly size and seat her on the ground.
+		const FBoxSphereBounds B = DogSkel->GetBounds();
+		const float RawHeight = B.BoxExtent.Z * 2.f;
+		if (RawHeight > 1.f)
+		{
+			SkelBody->SetRelativeScale3D(FVector(TargetHeight / RawHeight));
+		}
+		const float SZ = SkelBody->GetRelativeScale3D().Z;
+		FootOffset = (B.BoxExtent.Z - B.Origin.Z) * SZ;
+
+		WalkAnim = LoadObject<UAnimSequence>(nullptr, *DogWalkAnimPath);
+		IdleAnim = LoadObject<UAnimSequence>(nullptr, *DogIdleAnimPath);
+		PlayDogClip(IdleAnim);
 	}
 	else
 	{
@@ -132,6 +148,12 @@ void ACompanionPet::Tick(float DeltaSeconds)
 	FollowOwner(DeltaSeconds);
 	GroundStick();
 
+	if (bRigged)
+	{
+		UpdateDogAnim(DeltaSeconds);
+	}
+	LastPos = GetActorLocation();
+
 	// Time for a new tip?
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	if (Now >= NextTipTime)
@@ -139,6 +161,27 @@ void ACompanionPet::Tick(float DeltaSeconds)
 		CurrentTip = ChooseTip();
 		TipHideTime = Now + TipDuration;
 		NextTipTime = Now + TipInterval;
+	}
+}
+
+void ACompanionPet::UpdateDogAnim(float DeltaSeconds)
+{
+	const float Speed = (DeltaSeconds > 0.f)
+		? FVector::Dist2D(GetActorLocation(), LastPos) / DeltaSeconds
+		: 0.f;
+	UAnimSequence* Want = (Speed > 12.f) ? WalkAnim : IdleAnim;
+	if (Want && Want != CurrentAnim)
+	{
+		PlayDogClip(Want);
+	}
+}
+
+void ACompanionPet::PlayDogClip(UAnimSequence* Clip)
+{
+	if (Clip && SkelBody && SkelBody->GetSkeletalMeshAsset())
+	{
+		SkelBody->PlayAnimation(Clip, /*bLooping=*/true);
+		CurrentAnim = Clip;
 	}
 }
 
