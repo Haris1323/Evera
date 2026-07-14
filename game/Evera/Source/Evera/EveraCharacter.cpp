@@ -17,11 +17,14 @@
 #include "EveraHUD.h"
 #include "ResourceNode.h"
 #include "ResourcePickup.h"
+#include "RideableHorse.h"
+#include "CompanionPet.h"
 #include "ForestSpawner.h"
 #include "BuildPiece.h"
 #include "EveraGameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 #include "CollisionQueryParams.h"
 #include "Animation/AnimInstance.h"
@@ -148,6 +151,9 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 	// Open/close the backpack on the I key.
 	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &AEveraCharacter::ToggleInventory);
+
+	// Mount / dismount the nearest horse on the F key.
+	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &AEveraCharacter::MountToggle);
 
 	// Building: B toggles build mode, N cycles the piece, R rotates it,
 	// left mouse places it, X removes the piece being looked at.
@@ -291,6 +297,30 @@ void AEveraCharacter::BeginPlay()
 		};
 		ScatterPickups(EResourceType::Wood, 28);
 		ScatterPickups(EResourceType::Stone, 20);
+
+		// Give the player their companion dog, Lea — she trots along beside them
+		// and offers friendly, context-aware tips on what to do next.
+		FVector LeaPos = GetActorLocation() + GetActorForwardVector() * 130.f + GetActorRightVector() * 90.f;
+		FActorSpawnParameters PetSP;
+		PetSP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		PetSP.Owner = this;
+		Companion = GetWorld()->SpawnActor<ACompanionPet>(ACompanionPet::StaticClass(), FTransform(FRotator::ZeroRotator, LeaPos), PetSP);
+		if (Companion)
+		{
+			Companion->SetOwnerPlayer(this);
+		}
+
+		// Spawn a rideable horse a little way in front, seated on the terrain.
+		FVector HorsePos = GetActorLocation() + GetActorForwardVector() * 550.f;
+		FHitResult HorseGround;
+		FCollisionQueryParams HGP(FName(TEXT("HorseSpawn")), false, this);
+		if (GetWorld()->LineTraceSingleByChannel(HorseGround, HorsePos + FVector(0, 0, 3000), HorsePos - FVector(0, 0, 6000), ECC_Visibility, HGP))
+		{
+			HorsePos.Z = HorseGround.ImpactPoint.Z;
+		}
+		FActorSpawnParameters HorseSP;
+		HorseSP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		GetWorld()->SpawnActor<ARideableHorse>(ARideableHorse::StaticClass(), FTransform(FRotator::ZeroRotator, HorsePos), HorseSP);
 	}
 
 	if (!HasAuthority() || !bSpawnTestResourceNodes)
@@ -450,6 +480,106 @@ void AEveraCharacter::ServerGatherFoliage_Implementation(UInstancedStaticMeshCom
 	}
 }
 
+// ---- Riding the horse ------------------------------------------------------
+
+void AEveraCharacter::MountToggle()
+{
+	if (bMounted)
+	{
+		Dismount();
+		return;
+	}
+
+	// Climb onto the nearest horse within reach.
+	ARideableHorse* Nearest = nullptr;
+	float BestDist = MountRange;
+	for (TActorIterator<ARideableHorse> It(GetWorld()); It; ++It)
+	{
+		const float D = FVector::Dist(GetActorLocation(), It->GetActorLocation());
+		if (D < BestDist)
+		{
+			BestDist = D;
+			Nearest = *It;
+		}
+	}
+	if (Nearest)
+	{
+		Mount(Nearest);
+	}
+}
+
+void AEveraCharacter::Mount(ARideableHorse* Horse)
+{
+	if (!Horse || !Horse->GetSaddlePoint())
+	{
+		return;
+	}
+
+	CurrentHorse = Horse;
+	bMounted = true;
+
+	// Hand physics/movement over to the horse and sit the player in the saddle.
+	GetCharacterMovement()->DisableMovement();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AttachToComponent(Horse->GetSaddlePoint(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	SetActorRelativeRotation(FRotator::ZeroRotator);
+}
+
+void AEveraCharacter::Dismount()
+{
+	bMounted = false;
+	MountMoveInput = FVector2D::ZeroVector;
+
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	// Restore normal movement + collision, then step off to the side onto the ground.
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
+	FVector Side = GetActorLocation();
+	if (CurrentHorse)
+	{
+		Side = CurrentHorse->GetActorLocation() + CurrentHorse->GetActorRightVector() * 160.f;
+		FHitResult G;
+		FCollisionQueryParams GP(FName(TEXT("Dismount")), false, this);
+		GP.AddIgnoredActor(CurrentHorse);
+		if (GetWorld()->LineTraceSingleByChannel(G, Side + FVector(0, 0, 300), Side - FVector(0, 0, 2000), ECC_Visibility, GP))
+		{
+			Side.Z = G.ImpactPoint.Z + GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+		}
+	}
+	SetActorLocation(Side, false, nullptr, ETeleportType::TeleportPhysics);
+
+	CurrentHorse = nullptr;
+}
+
+void AEveraCharacter::DriveMountedHorse(float DeltaSeconds)
+{
+	if (!CurrentHorse || MountMoveInput.IsNearlyZero())
+	{
+		return; // no input: the horse holds still
+	}
+
+	// Direction from the movement input, relative to where the player is looking.
+	const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
+	const FVector Fwd = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
+	const FVector Right = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
+	FVector Dir = Fwd * MountMoveInput.Y + Right * MountMoveInput.X;
+	Dir.Z = 0.f;
+	if (Dir.IsNearlyZero())
+	{
+		return;
+	}
+	Dir.Normalize();
+
+	// Turn the horse smoothly toward that direction, then walk it forward.
+	const FRotator WantRot(0.f, Dir.Rotation().Yaw, 0.f);
+	CurrentHorse->SetActorRotation(FMath::RInterpTo(CurrentHorse->GetActorRotation(), WantRot, DeltaSeconds, CurrentHorse->GetTurnSpeed()));
+
+	const FVector Step = CurrentHorse->GetActorForwardVector() * CurrentHorse->GetRideSpeed() * DeltaSeconds;
+	CurrentHorse->AddActorWorldOffset(Step, /*bSweep=*/true);
+}
+
 // ---- Building --------------------------------------------------------------
 
 void AEveraCharacter::Tick(float DeltaSeconds)
@@ -462,6 +592,14 @@ void AEveraCharacter::Tick(float DeltaSeconds)
 	if (bBuildMode)
 	{
 		UpdateBuildGhost();
+	}
+
+	if (bMounted && CurrentHorse)
+	{
+		DriveMountedHorse(DeltaSeconds);
+		// Clear the captured input; DoMove refills it each frame the keys are held,
+		// so releasing the keys leaves it zero and the horse comes to a stop.
+		MountMoveInput = FVector2D::ZeroVector;
 	}
 }
 
@@ -1026,6 +1164,13 @@ void AEveraCharacter::PlayGatherAnim()
 
 void AEveraCharacter::DoMove(float Right, float Forward)
 {
+	// While riding, the input steers the horse instead of the player (consumed in Tick).
+	if (bMounted && CurrentHorse)
+	{
+		MountMoveInput = FVector2D(Right, Forward);
+		return;
+	}
+
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward

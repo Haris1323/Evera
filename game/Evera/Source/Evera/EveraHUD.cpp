@@ -10,6 +10,7 @@
 #include "SkillsComponent.h"
 #include "CraftingComponent.h"
 #include "EveraCharacter.h"
+#include "CompanionPet.h"
 #include "BuildPiece.h"
 #include "EveraGameInstance.h"
 #include "EveraUITheme.h"
@@ -157,6 +158,63 @@ void AEveraHUD::DrawHUD()
 				FLinearColor(0.85f, 0.92f, 0.85f), BX + 16.f, BY + 32.f, Font);
 
 			DrawBuildPalette(Evera);
+		}
+	}
+
+	// --- Lea's tip bubble (bottom centre) + riding hint ---
+	if (const AEveraCharacter* Evera = Cast<AEveraCharacter>(Pawn))
+	{
+		FString Tip;
+		FString Who = TEXT("Lea");
+		if (const ACompanionPet* Pet = Evera->GetCompanion())
+		{
+			Tip = Pet->GetActiveTip();
+			Who = Pet->GetPetName();
+		}
+		if (!Tip.IsEmpty())
+		{
+			UFont* TipFont = GEngine ? GEngine->GetMediumFont() : nullptr;
+
+			// Word-wrap the tip to a comfortable width.
+			TArray<FString> Lines;
+			{
+				const int32 Wrap = 62;
+				FString Cur;
+				TArray<FString> Words;
+				Tip.ParseIntoArray(Words, TEXT(" "));
+				for (const FString& W : Words)
+				{
+					if (Cur.Len() + W.Len() + 1 > Wrap) { Lines.Add(Cur); Cur = W; }
+					else { Cur = Cur.IsEmpty() ? W : Cur + TEXT(" ") + W; }
+				}
+				if (!Cur.IsEmpty()) { Lines.Add(Cur); }
+			}
+
+			const float BW = 720.f;
+			const float LineH = 22.f;
+			const float BH = 34.f + Lines.Num() * LineH;
+			const float BX = Canvas->SizeX * 0.5f - BW * 0.5f;
+			const float BY = Canvas->SizeY - BH - 44.f;
+
+			DrawRect(EveraUI::A(EveraUI::Ground1, 0.92f), BX, BY, BW, BH);
+			DrawRect(EveraUI::A(EveraUI::Gold, 0.75f), BX, BY, BW, 2.f);
+			DrawRect(EveraUI::A(EveraUI::Gold, 0.75f), BX, BY + BH - 2.f, BW, 2.f);
+
+			DrawText(FString::Printf(TEXT("%s"), *Who), EveraUI::GoldBright, BX + 20.f, BY + 12.f, TipFont, 1.15f);
+			float TY = BY + 12.f;
+			const float TX = BX + 92.f;
+			for (const FString& L : Lines)
+			{
+				DrawText(L, EveraUI::Text, TX, TY, TipFont);
+				TY += LineH;
+			}
+		}
+
+		if (Evera->IsMounted())
+		{
+			UFont* HintFont = GEngine ? GEngine->GetMediumFont() : nullptr;
+			DrawText(TEXT("Riding Lea's horse   -   [WASD] ride   [F] get off"),
+				EveraUI::GoldBright, Canvas->SizeX * 0.5f - 190.f, 88.f, HintFont);
 		}
 	}
 

@@ -18,6 +18,8 @@ class UInstancedStaticMeshComponent;
 class AResourceNode;
 class ABuildPiece;
 class AResourcePickup;
+class ARideableHorse;
+class ACompanionPet;
 enum class EBuildPieceType : uint8;
 class UAnimMontage;
 class UAnimSequence;
@@ -188,6 +190,38 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Gathering")
 	int32 TreeHealthMax = 20;
 
+	// ---- Riding the horse ---------------------------------------------------
+
+	/** Mount the nearest horse, or dismount if already riding (bound to the F key). */
+	void MountToggle();
+
+	/** Sit the player on a horse and hand movement over to it. */
+	void Mount(ARideableHorse* Horse);
+
+	/** Get off the horse and stand beside it. */
+	void Dismount();
+
+	/** While mounted, steer + move the horse from the player's movement input. */
+	void DriveMountedHorse(float DeltaSeconds);
+
+	UPROPERTY()
+	ARideableHorse* CurrentHorse = nullptr;
+
+	bool bMounted = false;
+
+	/** Movement input captured this frame while mounted (consumed in Tick). */
+	FVector2D MountMoveInput = FVector2D::ZeroVector;
+
+	/** How close the player must be to a horse to climb on (cm). */
+	UPROPERTY(EditAnywhere, Category="Mount")
+	float MountRange = 450.f;
+
+	// ---- Companion dog (Lea) ------------------------------------------------
+
+	/** The player's own companion dog, spawned on begin play. */
+	UPROPERTY()
+	ACompanionPet* Companion = nullptr;
+
 	/** Open/close the backpack inventory screen (bound to the I key). */
 	void ToggleInventory();
 
@@ -274,6 +308,12 @@ public:
 
 	/** Current floor level pieces are placed at (for the HUD). */
 	int32 GetBuildLevel() const { return BuildLevel; }
+
+	/** Whether the player is currently riding a horse (for the HUD). */
+	bool IsMounted() const { return bMounted; }
+
+	/** The player's companion dog, so the HUD can show her tips. */
+	ACompanionPet* GetCompanion() const { return Companion; }
 
 protected:
 
