@@ -9,6 +9,7 @@
 class UCapsuleComponent;
 class USkeletalMeshComponent;
 class UAnimSequence;
+class ACharacter;
 
 /**
  *  A gentle ambient animal that wanders its home area and stops to graze. It
@@ -26,6 +27,15 @@ public:
 	AWanderingAnimal();
 
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** Tame this animal so it joins the player's farm and follows them around. */
+	void Tame(ACharacter* NewOwner);
+
+	bool IsTamed() const { return bTamed; }
+
+	/** A friendly display name for the HUD ("Cow", "Deer", ...). */
+	UPROPERTY(EditAnywhere, Category="Animal")
+	FString SpeciesName = TEXT("Cow");
 
 protected:
 	virtual void BeginPlay() override;
@@ -78,4 +88,14 @@ private:
 	FVector Target = FVector::ZeroVector;
 	bool bGrazing = false;
 	float GrazeTimer = 0.f;
+
+	/** Once tamed, the animal follows this player instead of wandering its home. */
+	UPROPERTY()
+	ACharacter* TamedOwner = nullptr;
+
+	bool bTamed = false;
+
+	/** How close a tamed animal keeps to its owner before catching up (cm). */
+	UPROPERTY(EditAnywhere, Category="Animal|Behaviour")
+	float FollowDistance = 450.f;
 };

@@ -19,6 +19,9 @@
 #include "ResourcePickup.h"
 #include "RideableHorse.h"
 #include "CompanionPet.h"
+#include "Campfire.h"
+#include "WanderingAnimal.h"
+#include "EveraTimeOfDay.h"
 #include "ForestSpawner.h"
 #include "BuildPiece.h"
 #include "EveraGameInstance.h"
@@ -175,6 +178,8 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	PlayerInputComponent->BindKey(EKeys::Four, IE_Pressed, this, &AEveraCharacter::SelectBuild4);
 	PlayerInputComponent->BindKey(EKeys::Five, IE_Pressed, this, &AEveraCharacter::SelectBuild5);
 	PlayerInputComponent->BindKey(EKeys::Six, IE_Pressed, this, &AEveraCharacter::SelectBuild6);
+	PlayerInputComponent->BindKey(EKeys::Seven, IE_Pressed, this, &AEveraCharacter::SelectBuild7);
+	PlayerInputComponent->BindKey(EKeys::Eight, IE_Pressed, this, &AEveraCharacter::SelectBuild8);
 }
 
 void AEveraCharacter::Move(const FInputActionValue& Value)
@@ -321,6 +326,14 @@ void AEveraCharacter::BeginPlay()
 		FActorSpawnParameters HorseSP;
 		HorseSP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		GetWorld()->SpawnActor<ARideableHorse>(ARideableHorse::StaticClass(), FTransform(FRotator::ZeroRotator, HorsePos), HorseSP);
+
+		// Start the day/night cycle (only one driver for the whole world).
+		bool bHasTime = false;
+		for (TActorIterator<AEveraTimeOfDay> It(GetWorld()); It; ++It) { bHasTime = true; TimeOfDay = *It; break; }
+		if (!bHasTime)
+		{
+			TimeOfDay = GetWorld()->SpawnActor<AEveraTimeOfDay>(AEveraTimeOfDay::StaticClass(), FTransform::Identity);
+		}
 	}
 
 	if (!HasAuthority() || !bSpawnTestResourceNodes)
@@ -391,7 +404,20 @@ void AEveraCharacter::Interact()
 	FCollisionQueryParams Params(FName(TEXT("Interact")), /*bTraceComplex=*/false, this);
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
 	{
-		if (AResourcePickup* Pickup = Cast<AResourcePickup>(Hit.GetActor()))
+		if (ACampfire* Fire = Cast<ACampfire>(Hit.GetActor()))
+		{
+			// Light or put out the campfire we're looking at.
+			ServerToggleCampfire(Fire);
+		}
+		else if (AWanderingAnimal* Animal = Cast<AWanderingAnimal>(Hit.GetActor()))
+		{
+			// Befriend the animal so it joins the farm and follows us.
+			if (!Animal->IsTamed())
+			{
+				ServerTameAnimal(Animal);
+			}
+		}
+		else if (AResourcePickup* Pickup = Cast<AResourcePickup>(Hit.GetActor()))
 		{
 			PlayGatherAnim(); // bend down and pick it up
 			ServerGatherPickup(Pickup);
@@ -578,6 +604,36 @@ void AEveraCharacter::DriveMountedHorse(float DeltaSeconds)
 
 	const FVector Step = CurrentHorse->GetActorForwardVector() * CurrentHorse->GetRideSpeed() * DeltaSeconds;
 	CurrentHorse->AddActorWorldOffset(Step, /*bSweep=*/true);
+}
+
+// ---- Farm (tame animals) + campfire ----------------------------------------
+
+void AEveraCharacter::ServerToggleCampfire_Implementation(ACampfire* Fire)
+{
+	if (!Fire)
+	{
+		return;
+	}
+	if (FVector::Dist(GetActorLocation(), Fire->GetActorLocation()) > MaxGatherDistance)
+	{
+		return;
+	}
+	Fire->ToggleLit();
+}
+
+void AEveraCharacter::ServerTameAnimal_Implementation(AWanderingAnimal* Animal)
+{
+	if (!Animal || Animal->IsTamed())
+	{
+		return;
+	}
+	// Animals are large, so allow a slightly longer reach than for gathering.
+	if (FVector::Dist(GetActorLocation(), Animal->GetActorLocation()) > MaxGatherDistance + 250.f)
+	{
+		return;
+	}
+	Animal->Tame(this);
+	++FarmAnimalCount;
 }
 
 // ---- Building --------------------------------------------------------------
@@ -1007,6 +1063,17 @@ void AEveraCharacter::ServerPlaceBuildPiece_Implementation(uint8 TypeIndex, FTra
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	// A campfire is its own actor (it can be lit); everything else is a box piece.
+	if (Type == EBuildPieceType::Campfire)
+	{
+		if (GetWorld()->SpawnActor<ACampfire>(ACampfire::StaticClass(), Xform, SpawnParams))
+		{
+			Inv->RemoveResource(EResourceType::Wood, Cost);
+		}
+		return;
+	}
+
 	if (ABuildPiece* Piece = GetWorld()->SpawnActor<ABuildPiece>(ABuildPiece::StaticClass(), Xform, SpawnParams))
 	{
 		Piece->SetPieceType(Type);

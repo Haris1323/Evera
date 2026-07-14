@@ -251,6 +251,24 @@ void ABuildPiece::Rebuild()
 	case EBuildPieceType::Pillar:
 		AddBox(FVector(0, 0, WallHeight * 0.5f), FVector(22, 22, WallHeight * 0.5f));
 		break;
+
+	case EBuildPieceType::Fence:
+	{
+		// A low rustic fence: two posts with two horizontal rails between them,
+		// spanning one cell so fences line up into a run for a farm pen.
+		const float FenceH = 120.f;
+		AddBox(FVector(-Half + 12.f, 0, FenceH * 0.5f), FVector(12, 12, FenceH * 0.5f)); // left post
+		AddBox(FVector(Half - 12.f, 0, FenceH * 0.5f), FVector(12, 12, FenceH * 0.5f));  // right post
+		AddBox(FVector(0, 0, FenceH - 20.f), FVector(Half, 6, 8));                        // top rail
+		AddBox(FVector(0, 0, FenceH * 0.45f), FVector(Half, 6, 8));                       // lower rail
+		break;
+	}
+
+	case EBuildPieceType::Campfire:
+		// Never box-built: a Campfire is placed as its own ACampfire actor (it can
+		// be lit). This case only matters for the ghost preview — show a small ring.
+		AddBox(FVector(0, 0, 8.f), FVector(46, 46, 8.f));
+		break;
 	}
 
 	// Default appearance: real building material. Ghost mode overrides in SetGhost.
@@ -313,6 +331,8 @@ int32 ABuildPiece::GetWoodCost(EBuildPieceType Type)
 	case EBuildPieceType::Window:  return 3;
 	case EBuildPieceType::Roof:    return 2;
 	case EBuildPieceType::Pillar:  return 1;
+	case EBuildPieceType::Fence:   return 1;
+	case EBuildPieceType::Campfire:return 3;
 	default:                       return 2;
 	}
 }
@@ -327,12 +347,14 @@ FString ABuildPiece::GetDisplayName(EBuildPieceType Type)
 	case EBuildPieceType::Window:  return TEXT("Window");
 	case EBuildPieceType::Roof:    return TEXT("Roof");
 	case EBuildPieceType::Pillar:  return TEXT("Pillar");
+	case EBuildPieceType::Fence:   return TEXT("Fence");
+	case EBuildPieceType::Campfire:return TEXT("Campfire");
 	default:                       return TEXT("Piece");
 	}
 }
 
 EBuildPieceType ABuildPiece::NextType(EBuildPieceType Type)
 {
-	const uint8 Count = static_cast<uint8>(EBuildPieceType::Pillar) + 1;
+	const uint8 Count = static_cast<uint8>(EBuildPieceType::Campfire) + 1;
 	return static_cast<EBuildPieceType>((static_cast<uint8>(Type) + 1) % Count);
 }

@@ -11,6 +11,7 @@
 #include "CraftingComponent.h"
 #include "EveraCharacter.h"
 #include "CompanionPet.h"
+#include "EveraTimeOfDay.h"
 #include "BuildPiece.h"
 #include "EveraGameInstance.h"
 #include "EveraUITheme.h"
@@ -121,6 +122,32 @@ void AEveraHUD::DrawHUD()
 			EveraUI::Text, X, Y, Font);
 		Y += 16.f;
 		DrawText(TEXT("[C] Craft Axe   [V] Craft Pickaxe"), EveraUI::TextDim, X, Y, Font);
+	}
+
+	// --- Farm (tamed animals) ---
+	if (const AEveraCharacter* Ev = Cast<AEveraCharacter>(Pawn))
+	{
+		Y += 20.f;
+		DrawText(FString::Printf(TEXT("Farm animals: %d"), Ev->GetFarmAnimalCount()),
+			FLinearColor(0.72f, 0.92f, 0.72f), X, Y, Font);
+	}
+
+	// --- Day/night clock (top-right) ---
+	if (const AEveraCharacter* Ev = Cast<AEveraCharacter>(Pawn))
+	{
+		if (const AEveraTimeOfDay* TOD = Ev->GetTimeOfDay())
+		{
+			UFont* ClockFont = GEngine ? GEngine->GetMediumFont() : nullptr;
+			const float CW = 132.f;
+			const float CH = 42.f;
+			const float CX = Canvas->SizeX - CW - 18.f;
+			const float CY = 16.f;
+			DrawRect(EveraUI::A(EveraUI::Ground1, 0.86f), CX, CY, CW, CH);
+			DrawRect(EveraUI::A(EveraUI::Gold, 0.7f), CX, CY, CW, 2.f);
+			DrawRect(EveraUI::A(EveraUI::Gold, 0.7f), CX, CY + CH - 2.f, CW, 2.f);
+			DrawText(TOD->IsNight() ? TEXT("Night") : TEXT("Day"), EveraUI::TextDim, CX + 12.f, CY + 6.f, Font);
+			DrawText(TOD->GetTimeString(), EveraUI::GoldBright, CX + 62.f, CY + 10.f, ClockFont, 1.25f);
+		}
 	}
 
 	// --- Build mode banner (top centre) ---
@@ -287,7 +314,7 @@ void AEveraHUD::DrawBuildPalette(const AEveraCharacter* Character)
 	const FLinearColor Dim = EveraUI::TextDim;
 
 	const bool bFurn = Character->IsFurnitureMode();
-	const int32 Count = bFurn ? ABuildPiece::NumFurniture() : static_cast<int32>(EBuildPieceType::Pillar) + 1;
+	const int32 Count = bFurn ? ABuildPiece::NumFurniture() : static_cast<int32>(EBuildPieceType::Campfire) + 1;
 	const int32 Selected = bFurn ? Character->GetFurnitureIndex() : static_cast<int32>(Character->GetBuildPieceType());
 
 	const float CellW = 112.f;
@@ -406,6 +433,23 @@ void AEveraHUD::DrawPieceIcon(EBuildPieceType Type, float X, float Y, float S, c
 	case EBuildPieceType::Pillar:
 		DrawRect(C, X + S * 0.36f, Y, S * 0.28f, S);
 		break;
+
+	case EBuildPieceType::Fence:
+		DrawRect(C, X + S * 0.10f, Y + S * 0.2f, S * 0.12f, S * 0.8f); // left post
+		DrawRect(C, X + S * 0.78f, Y + S * 0.2f, S * 0.12f, S * 0.8f); // right post
+		DrawRect(C, X, Y + S * 0.34f, S, S * 0.10f);                   // top rail
+		DrawRect(C, X, Y + S * 0.60f, S, S * 0.10f);                   // lower rail
+		break;
+
+	case EBuildPieceType::Campfire:
+	{
+		const FLinearColor Flame(1.0f, 0.55f, 0.12f, 1.f);
+		DrawRect(C, X + S * 0.05f, Y + S * 0.72f, S * 0.9f, S * 0.14f);          // logs
+		DrawLine(X + S * 0.5f, Y + S * 0.75f, X + S * 0.35f, Y + S * 0.30f, Flame, 2.5f);
+		DrawLine(X + S * 0.5f, Y + S * 0.75f, X + S * 0.65f, Y + S * 0.30f, Flame, 2.5f);
+		DrawLine(X + S * 0.5f, Y + S * 0.75f, X + S * 0.5f, Y + S * 0.18f, Flame, 2.5f);
+		break;
+	}
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
+#include "GameFramework/Character.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 
@@ -47,6 +48,18 @@ void AWanderingAnimal::BeginPlay()
 	PlayClip(WalkAnim);
 }
 
+void AWanderingAnimal::Tame(ACharacter* NewOwner)
+{
+	if (!HasAuthority() || !NewOwner)
+	{
+		return;
+	}
+	bTamed = true;
+	TamedOwner = NewOwner;
+	bGrazing = false;
+	PlayClip(WalkAnim);
+}
+
 void AWanderingAnimal::PickNewTarget()
 {
 	const float Angle = FMath::FRandRange(0.f, 2.f * PI);
@@ -81,6 +94,44 @@ void AWanderingAnimal::Tick(float DeltaSeconds)
 
 	if (!HasAuthority())
 	{
+		return;
+	}
+
+	// Tamed: trail the owner like a farm animal instead of wandering a home area.
+	if (bTamed && TamedOwner)
+	{
+		const FVector Loc = GetActorLocation();
+		FVector ToOwner = TamedOwner->GetActorLocation() - Loc;
+		ToOwner.Z = 0.f;
+		const float Dist = ToOwner.Size();
+
+		if (Dist > FollowDistance)
+		{
+			const FVector Dir = ToOwner / FMath::Max(Dist, 1.f);
+			SetActorLocation(Loc + Dir * WalkSpeed * 1.6f * DeltaSeconds, false);
+
+			FRotator Facing = Dir.Rotation();
+			Facing.Pitch = 0.f;
+			Facing.Roll = 0.f;
+			Facing.Yaw += MeshYawOffset;
+			SetActorRotation(Facing);
+
+			if (bGrazing) { bGrazing = false; PlayClip(WalkAnim); }
+		}
+		else if (!bGrazing)
+		{
+			// Close enough: settle and graze near the owner.
+			bGrazing = true;
+			GrazeTimer = GrazeSeconds;
+			PlayClip(GrazeAnim);
+		}
+		else
+		{
+			GrazeTimer -= DeltaSeconds;
+			if (GrazeTimer <= 0.f) { bGrazing = false; PlayClip(WalkAnim); }
+		}
+
+		StickToGround();
 		return;
 	}
 

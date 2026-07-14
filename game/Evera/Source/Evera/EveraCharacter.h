@@ -20,6 +20,9 @@ class ABuildPiece;
 class AResourcePickup;
 class ARideableHorse;
 class ACompanionPet;
+class ACampfire;
+class AWanderingAnimal;
+class AEveraTimeOfDay;
 enum class EBuildPieceType : uint8;
 class UAnimMontage;
 class UAnimSequence;
@@ -222,6 +225,25 @@ protected:
 	UPROPERTY()
 	ACompanionPet* Companion = nullptr;
 
+	// ---- Farm (tame animals) + campfire -------------------------------------
+
+	/** Server RPC: light/extinguish a campfire the player is looking at. */
+	UFUNCTION(Server, Reliable)
+	void ServerToggleCampfire(ACampfire* Fire);
+
+	/** Server RPC: tame an animal so it joins the player's farm. */
+	UFUNCTION(Server, Reliable)
+	void ServerTameAnimal(AWanderingAnimal* Animal);
+
+	/** How many animals the player has tamed onto their farm. */
+	int32 FarmAnimalCount = 0;
+
+	// ---- Day / night --------------------------------------------------------
+
+	/** The world's day/night driver, spawned once on begin play. */
+	UPROPERTY()
+	AEveraTimeOfDay* TimeOfDay = nullptr;
+
 	/** Open/close the backpack inventory screen (bound to the I key). */
 	void ToggleInventory();
 
@@ -247,6 +269,8 @@ protected:
 	void SelectBuild4() { SelectBuildPiece(3); }
 	void SelectBuild5() { SelectBuildPiece(4); }
 	void SelectBuild6() { SelectBuildPiece(5); }
+	void SelectBuild7() { SelectBuildPiece(6); }
+	void SelectBuild8() { SelectBuildPiece(7); }
 
 	/** Rotate the piece to place by 90 degrees (R key). */
 	void RotateBuildPiece();
@@ -314,6 +338,12 @@ public:
 
 	/** The player's companion dog, so the HUD can show her tips. */
 	ACompanionPet* GetCompanion() const { return Companion; }
+
+	/** Number of animals tamed onto the farm (for the HUD). */
+	int32 GetFarmAnimalCount() const { return FarmAnimalCount; }
+
+	/** The day/night driver, so the HUD can show a clock. */
+	AEveraTimeOfDay* GetTimeOfDay() const { return TimeOfDay; }
 
 protected:
 

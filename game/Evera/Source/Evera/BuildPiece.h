@@ -19,7 +19,9 @@ enum class EBuildPieceType : uint8
 	Doorway  UMETA(DisplayName = "Doorway"),
 	Window   UMETA(DisplayName = "Window"),
 	Roof     UMETA(DisplayName = "Roof"),
-	Pillar   UMETA(DisplayName = "Pillar")
+	Pillar   UMETA(DisplayName = "Pillar"),
+	Fence    UMETA(DisplayName = "Fence"),
+	Campfire UMETA(DisplayName = "Campfire")
 };
 
 /**

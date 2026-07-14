@@ -214,7 +214,10 @@ FString ACompanionPet::ChooseTip()
 		TEXT("The more you chop and mine, the faster you get. Keep practising!"),
 		TEXT("Press I to open your backpack and see everything you've collected."),
 		TEXT("See the horse? Walk up to it and press F to ride together!"),
-		TEXT("Let's take care of the animals and explore the whole forest!"),
+		TEXT("Look at a cow or deer and press E to tame it for your farm!"),
+		TEXT("Build a campfire, then look at it and press E to light it and warm up!"),
+		TEXT("Fences (in the build menu) make a cosy pen for your farm animals."),
+		TEXT("It gets dark at night — a campfire keeps things bright and warm!"),
 	};
 	const int32 Count = UE_ARRAY_COUNT(General);
 	const FString Tip = General[GeneralTipCursor % Count];
