@@ -2,8 +2,11 @@
 
 #include "RideableHorse.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequence.h"
 #include "Engine/World.h"
 
 ARideableHorse::ARideableHorse()
@@ -21,6 +24,13 @@ ARideableHorse::ARideableHorse()
 	HorseMesh->SetCollisionResponseToAllChannels(ECR_Block);
 	HorseMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
+	SkelMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkelMesh"));
+	SkelMesh->SetupAttachment(Root);
+	SkelMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SkelMesh->SetCollisionResponseToAllChannels(ECR_Block);
+	SkelMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	SkelMesh->SetVisibility(false);
+
 	SaddlePoint = CreateDefaultSubobject<USceneComponent>(TEXT("SaddlePoint"));
 	SaddlePoint->SetupAttachment(Root);
 }
@@ -29,39 +39,62 @@ void ARideableHorse::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *HorseMeshPath))
+	// Prefer a rigged skeletal horse (animated legs); otherwise the static model.
+	USkeletalMesh* Skel = LoadObject<USkeletalMesh>(nullptr, *SkelMeshPath);
+	if (Skel)
 	{
-		HorseMesh->SetStaticMesh(Mesh);
+		bRigged = true;
+		SkelMesh->SetSkeletalMeshAsset(Skel);
+		SkelMesh->SetVisibility(true);
+		HorseMesh->SetVisibility(false);
+		HorseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SkelMesh->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
+
+		const FBoxSphereBounds B = Skel->GetBounds();
+		const float RawHeight = B.BoxExtent.Z * 2.f;
+		if (RawHeight > 1.f)
+		{
+			SkelMesh->SetRelativeScale3D(FVector(TargetHeight / RawHeight));
+		}
+		const FVector S = SkelMesh->GetRelativeScale3D();
+		// Lift so the lowest point (hooves) sits on the ground, and seat the rider
+		// just above the top of the body.
+		FootOffset = (B.BoxExtent.Z - B.Origin.Z) * S.Z;
+		SaddlePoint->SetRelativeLocation(FVector(0.f, 0.f, (B.Origin.Z + B.BoxExtent.Z) * S.Z + 12.f));
+
+		WalkAnim = LoadObject<UAnimSequence>(nullptr, *WalkAnimPath);
+		IdleAnim = LoadObject<UAnimSequence>(nullptr, *IdleAnimPath);
+		PlayHorseClip(IdleAnim);
 	}
 	else
 	{
-		// Fallback so the horse is still visible/rideable before the model is imported.
-		if (UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")))
+		if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *HorseMeshPath))
+		{
+			HorseMesh->SetStaticMesh(Mesh);
+		}
+		else if (UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")))
 		{
 			HorseMesh->SetStaticMesh(Cube);
 			HorseMesh->SetRelativeScale3D(FVector(2.4f, 0.9f, 1.6f));
 		}
-	}
 
-	// Auto-fit: scale the raw imported model so it stands ~TargetHeight tall, then
-	// remember how far its feet are below the pivot so GroundStick can seat it.
-	if (HorseMesh->GetStaticMesh())
-	{
-		const FBox Local = HorseMesh->GetStaticMesh()->GetBoundingBox();
-		const float RawHeight = Local.GetSize().Z;
-		if (RawHeight > 1.f && HorseMesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Horse")))
+		if (HorseMesh->GetStaticMesh())
 		{
-			const float Scale = TargetHeight / RawHeight;
-			HorseMesh->SetRelativeScale3D(FVector(Scale));
-		}
-		const FVector S = HorseMesh->GetRelativeScale3D();
-		FootOffset = -Local.Min.Z * S.Z;
+			const FBox Local = HorseMesh->GetStaticMesh()->GetBoundingBox();
+			const float RawHeight = Local.GetSize().Z;
+			if (RawHeight > 1.f && HorseMesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Horse")))
+			{
+				HorseMesh->SetRelativeScale3D(FVector(TargetHeight / RawHeight));
+			}
+			const FVector S = HorseMesh->GetRelativeScale3D();
+			FootOffset = -Local.Min.Z * S.Z;
 
-		// Seat the rider a bit above and slightly back from the top of the body.
-		const float TopZ = Local.Max.Z * S.Z;
-		SaddlePoint->SetRelativeLocation(FVector(-Local.GetCenter().X * S.X, 0.f, TopZ + 12.f));
+			const float TopZ = Local.Max.Z * S.Z;
+			SaddlePoint->SetRelativeLocation(FVector(-Local.GetCenter().X * S.X, 0.f, TopZ + 12.f));
+		}
 	}
 
+	LastPos = GetActorLocation();
 	GroundStick();
 }
 
@@ -69,8 +102,36 @@ void ARideableHorse::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Every frame, keep the feet planted on the terrain (whether idle or ridden).
+	// Keep the feet planted on the terrain (whether idle or ridden).
 	GroundStick();
+
+	if (bRigged)
+	{
+		UpdateHorseAnim(DeltaSeconds);
+	}
+	LastPos = GetActorLocation();
+}
+
+void ARideableHorse::UpdateHorseAnim(float DeltaSeconds)
+{
+	// Decide walk vs idle from how far the horse actually moved this frame.
+	const float Speed = (DeltaSeconds > 0.f)
+		? FVector::Dist2D(GetActorLocation(), LastPos) / DeltaSeconds
+		: 0.f;
+	UAnimSequence* Want = (Speed > 15.f) ? WalkAnim : IdleAnim;
+	if (Want && Want != CurrentAnim)
+	{
+		PlayHorseClip(Want);
+	}
+}
+
+void ARideableHorse::PlayHorseClip(UAnimSequence* Clip)
+{
+	if (Clip && SkelMesh && SkelMesh->GetSkeletalMeshAsset())
+	{
+		SkelMesh->PlayAnimation(Clip, /*bLooping=*/true);
+		CurrentAnim = Clip;
+	}
 }
 
 void ARideableHorse::GroundStick()
