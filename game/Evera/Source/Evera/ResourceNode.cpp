@@ -15,8 +15,8 @@
 // constructor/CDO phase crashes the engine). Missing assets -> cube fallback.
 namespace
 {
-	const TCHAR* StoneMeshPath = TEXT("/Game/Fab/Stone_-_photogrammetry/stone_photogrammetry/StaticMeshes/stone_photogrammetry.stone_photogrammetry");
-	const TCHAR* TreeMeshPath  = TEXT("/Game/Megaplant_Library/Tree_Norway_Spruce/Tree_Norway_Spruce_01/Tree_Norway_Spruce_01_A.Tree_Norway_Spruce_01_A");
+	const TCHAR* StoneMeshPath = TEXT("/Game/Stylized_PBR_Nature/Rocks/Assets/SM_S_Rock_05.SM_S_Rock_05");
+	const TCHAR* TreeMeshPath  = TEXT("/Game/Stylized_PBR_Nature/Foliage/Assets/SM_Common_Tree_03.SM_Common_Tree_03");
 }
 
 AResourceNode::AResourceNode()
@@ -66,22 +66,47 @@ void AResourceNode::BeginPlay()
 
 void AResourceNode::ApplyVisualsForType()
 {
+	// Converted level prop: keep the artist's exact mesh and placement, just make
+	// it harvestable. Works for both trees and rocks.
+	if (VisualMeshOverride)
+	{
+		Mesh->SetStaticMesh(VisualMeshOverride);
+		Mesh->SetVisibility(true);
+		Mesh->SetRelativeScale3D(FVector(1.f));
+		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+
+		TreeMesh->SetVisibility(false);
+
+		// A box covering the whole mesh makes look-to-interact reliable when the
+		// crosshair lands anywhere on the tree/rock, not just its narrow trunk.
+		const FBox LocalBounds = VisualMeshOverride->GetBoundingBox();
+		Collider->SetBoxExtent(LocalBounds.GetExtent());
+		Collider->SetRelativeLocation(LocalBounds.GetCenter());
+		Collider->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Collider->SetCollisionResponseToAllChannels(ECR_Block);
+		return;
+	}
+
 	if (ResourceType == EResourceType::Wood)
 	{
-		// Load the tree at runtime (safe, unlike in the constructor).
-		if (USkeletalMesh* Tree = LoadObject<USkeletalMesh>(nullptr, TreeMeshPath))
+		// Load the tree at runtime. We use the stylized static tree (working
+		// materials, and no dependency on the large ignored art packs).
+		if (UStaticMesh* Tree = LoadObject<UStaticMesh>(nullptr, TreeMeshPath))
 		{
 			const float Scale = FMath::FRandRange(TreeScaleMin, TreeScaleMax);
-			TreeMesh->SetSkeletalMeshAsset(Tree);
-			TreeMesh->SetVisibility(true);
-			TreeMesh->SetRelativeScale3D(FVector(Scale));
+			Mesh->SetStaticMesh(Tree);
+			Mesh->SetVisibility(true);
+			Mesh->SetRelativeScale3D(FVector(Scale));
+			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Mesh->SetCollisionResponseToAllChannels(ECR_Block);
 
-			Mesh->SetVisibility(false);
-			Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			TreeMesh->SetVisibility(false);
 
-			// Size the invisible collider to roughly match the tree's height.
-			const float ColliderHeight = FMath::Max(150.f, 1500.f * Scale);
-			Collider->SetBoxExtent(FVector(50.f, 50.f, ColliderHeight * 0.5f));
+			// A generous invisible trunk collider keeps look-to-interact reliable
+			// even when the crosshair lands on the canopy instead of the trunk.
+			const float ColliderHeight = FMath::Max(300.f, 800.f * Scale);
+			Collider->SetBoxExtent(FVector(70.f, 70.f, ColliderHeight * 0.5f));
 			Collider->SetRelativeLocation(FVector(0.f, 0.f, ColliderHeight * 0.5f));
 			Collider->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 			Collider->SetCollisionResponseToAllChannels(ECR_Block);
@@ -133,12 +158,14 @@ int32 AResourceNode::Gather(AActor* Gatherer)
 		return 0;
 	}
 
-	// The matching skill makes you gather more, and gathering trains that skill.
+	// Higher skill removes more per hit, so low levels take many hits (slow) and
+	// high levels fell a node in a few hits (fast). Gathering trains that skill.
 	const ESkillType Skill = (ResourceType == EResourceType::Wood) ? ESkillType::Woodcutting : ESkillType::Mining;
 	USkillsComponent* Skills = Gatherer->FindComponentByClass<USkillsComponent>();
-	const int32 Bonus = Skills ? Skills->GetGatherBonus(Skill) : 0;
+	const int32 Level = Skills ? Skills->GetLevel(Skill) : 1;
 
-	const int32 Granted = FMath::Min(AmountPerGather + Bonus, RemainingAmount);
+	const int32 PerHit = FMath::Max(1, 1 + Level); // Lv1 -> 2, higher -> more
+	const int32 Granted = FMath::Min(PerHit, RemainingAmount);
 
 	if (UInventoryComponent* Inventory = Gatherer->FindComponentByClass<UInventoryComponent>())
 	{

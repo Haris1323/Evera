@@ -44,6 +44,32 @@ bool UCraftingComponent::TryCraftStoneAxe()
 	return true;
 }
 
+bool UCraftingComponent::TryCraftStonePickaxe()
+{
+	AActor* Owner = GetOwner();
+	if (!Owner || !Owner->HasAuthority())
+	{
+		return false;
+	}
+
+	UInventoryComponent* Inventory = Owner->FindComponentByClass<UInventoryComponent>();
+	if (!Inventory)
+	{
+		return false;
+	}
+
+	if (!Inventory->HasResource(EResourceType::Wood, StonePickaxeWoodCost) ||
+		!Inventory->HasResource(EResourceType::Stone, StonePickaxeStoneCost))
+	{
+		return false;
+	}
+
+	Inventory->RemoveResource(EResourceType::Wood, StonePickaxeWoodCost);
+	Inventory->RemoveResource(EResourceType::Stone, StonePickaxeStoneCost);
+	AddCrafted(ECraftableItem::StonePickaxe, 1);
+	return true;
+}
+
 void UCraftingComponent::AddCrafted(ECraftableItem Item, int32 Amount)
 {
 	for (FCraftedItem& Entry : Crafted)

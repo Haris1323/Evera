@@ -3,6 +3,9 @@
 #include "SurvivalStatsComponent.h"
 #include "Engine/Engine.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 USurvivalStatsComponent::USurvivalStatsComponent()
 {
@@ -14,6 +17,7 @@ USurvivalStatsComponent::USurvivalStatsComponent()
 	Hunger = MaxValue;
 	Thirst = MaxValue;
 	Energy = MaxValue;
+	Hygiene = MaxValue;
 }
 
 void USurvivalStatsComponent::BeginPlay()
@@ -27,6 +31,7 @@ void USurvivalStatsComponent::BeginPlay()
 		Hunger = MaxValue;
 		Thirst = MaxValue;
 		Energy = MaxValue;
+		Hygiene = MaxValue;
 		HandleStatsUpdated();
 	}
 }
@@ -39,6 +44,7 @@ void USurvivalStatsComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(USurvivalStatsComponent, Hunger);
 	DOREPLIFETIME(USurvivalStatsComponent, Thirst);
 	DOREPLIFETIME(USurvivalStatsComponent, Energy);
+	DOREPLIFETIME(USurvivalStatsComponent, Hygiene);
 }
 
 void USurvivalStatsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -67,6 +73,15 @@ void USurvivalStatsComponent::UpdateSurvival(float DeltaTime)
 	Hunger = FMath::Clamp(Hunger - HungerDecayPerSecond * DeltaTime, 0.f, MaxValue);
 	Thirst = FMath::Clamp(Thirst - ThirstDecayPerSecond * DeltaTime, 0.f, MaxValue);
 	Energy = FMath::Clamp(Energy - EnergyDecayPerSecond * DeltaTime, 0.f, MaxValue);
+	Hygiene = FMath::Clamp(Hygiene - HygieneDecayPerSecond * DeltaTime, 0.f, MaxValue);
+
+	// Wading into the river washes you clean and lets you drink (refills faster
+	// than it drains, so the water is a reliable place to freshen up).
+	if (IsOwnerInWater())
+	{
+		Hygiene = FMath::Clamp(Hygiene + WaterWashPerSecond * DeltaTime, 0.f, MaxValue);
+		Thirst = FMath::Clamp(Thirst + WaterWashPerSecond * DeltaTime, 0.f, MaxValue);
+	}
 
 	const float HealthyLevel = MaxValue * HealthyThreshold;
 	const bool bStarving = (Hunger <= 0.f) || (Thirst <= 0.f);
@@ -75,12 +90,55 @@ void USurvivalStatsComponent::UpdateSurvival(float DeltaTime)
 	{
 		Health = FMath::Clamp(Health - StarvingHealthLossPerSecond * DeltaTime, 0.f, MaxValue);
 	}
-	else if (Hunger > HealthyLevel && Thirst > HealthyLevel)
+	// Recover health only when well-fed, hydrated AND reasonably clean — hygiene
+	// matters, but gently (a family game: being dirty just slows recovery).
+	else if (Hunger > HealthyLevel && Thirst > HealthyLevel && Hygiene > HealthyLevel)
 	{
 		Health = FMath::Clamp(Health + HealthRegenPerSecond * DeltaTime, 0.f, MaxValue);
 	}
 
 	HandleStatsUpdated();
+}
+
+bool USurvivalStatsComponent::IsOwnerInWater()
+{
+	const AActor* Owner = GetOwner();
+	if (!Owner)
+	{
+		return false;
+	}
+
+	// Find the level's water body once (an actor tagged "EveraWater").
+	if (!WaterActor.IsValid())
+	{
+		TArray<AActor*> Found;
+		UGameplayStatics::GetAllActorsWithTag(Owner, FName(TEXT("EveraWater")), Found);
+		if (Found.Num() == 0)
+		{
+			return false;
+		}
+		WaterActor = Found[0];
+	}
+
+	FVector WaterOrigin, WaterExtent;
+	WaterActor->GetActorBounds(/*bOnlyCollidingComponents=*/false, WaterOrigin, WaterExtent);
+
+	const FVector Loc = Owner->GetActorLocation();
+
+	// Inside the water footprint horizontally?
+	if (FMath::Abs(Loc.X - WaterOrigin.X) > WaterExtent.X ||
+		FMath::Abs(Loc.Y - WaterOrigin.Y) > WaterExtent.Y)
+	{
+		return false;
+	}
+
+	// And low enough that the character's feet are at/under the surface.
+	float FeetZ = Loc.Z;
+	if (const ACharacter* OwnerChar = Cast<ACharacter>(Owner))
+	{
+		FeetZ = Loc.Z - OwnerChar->GetSimpleCollisionHalfHeight();
+	}
+	return FeetZ <= WaterOrigin.Z + 20.f && FeetZ >= WaterOrigin.Z - 400.f;
 }
 
 void USurvivalStatsComponent::HandleStatsUpdated()
@@ -118,6 +176,12 @@ void USurvivalStatsComponent::Rest(float Amount)
 	HandleStatsUpdated();
 }
 
+void USurvivalStatsComponent::Wash(float Amount)
+{
+	Hygiene = FMath::Clamp(Hygiene + Amount, 0.f, MaxValue);
+	HandleStatsUpdated();
+}
+
 void USurvivalStatsComponent::Heal(float Amount)
 {
 	Health = FMath::Clamp(Health + Amount, 0.f, MaxValue);
@@ -144,6 +208,7 @@ void USurvivalStatsComponent::DrawDebug() const
 	};
 
 	// Stable keys -> messages refresh in place instead of stacking up.
+	ShowLine(1005, TEXT("Hygiene"), Hygiene, MaxValue, FColor(120, 200, 220));
 	ShowLine(1004, TEXT("Energy"), Energy, MaxValue, FColor::Green);
 	ShowLine(1003, TEXT("Thirst"), Thirst, MaxValue, FColor::Cyan);
 	ShowLine(1002, TEXT("Hunger"), Hunger, MaxValue, FColor::Orange);

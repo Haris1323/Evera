@@ -13,10 +13,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnSurvivalStatsChanged, float, He
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSurvivalDeath);
 
 /**
- *  Tracks the character's basic needs: health, hunger, thirst, energy (0..MaxValue).
- *  Values decay over time. When hunger OR thirst hits zero, health starts to drop.
- *  While hunger and thirst are above a threshold, health slowly regenerates.
- *  Server-authoritative (multiplayer-ready from the start).
+ *  Tracks the character's basic needs: health, hunger, thirst, energy, hygiene
+ *  (0..MaxValue). Values decay over time. When hunger OR thirst hits zero, health
+ *  starts to drop. While hunger, thirst and hygiene are above a threshold, health
+ *  slowly regenerates. Server-authoritative (multiplayer-ready from the start).
  */
 UCLASS(ClassGroup=(Evera), meta=(BlueprintSpawnableComponent))
 class EVERA_API USurvivalStatsComponent : public UActorComponent
@@ -41,6 +41,10 @@ public:
 	/** Restore energy (rest/sleep). */
 	UFUNCTION(BlueprintCallable, Category="Survival")
 	void Rest(float Amount);
+
+	/** Restore hygiene / cleanliness (washing, e.g. in a river or bath). */
+	UFUNCTION(BlueprintCallable, Category="Survival")
+	void Wash(float Amount);
 
 	/** Restore health. */
 	UFUNCTION(BlueprintCallable, Category="Survival")
@@ -80,6 +84,9 @@ public:
 	UPROPERTY(ReplicatedUsing=OnRep_Stats, VisibleAnywhere, BlueprintReadOnly, Category="Survival|State")
 	float Energy;
 
+	UPROPERTY(ReplicatedUsing=OnRep_Stats, VisibleAnywhere, BlueprintReadOnly, Category="Survival|State")
+	float Hygiene;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -106,6 +113,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Survival|Config", meta=(ClampMin="0.0"))
 	float EnergyDecayPerSecond = 0.35f;
 
+	/** How much hygiene drops per second (getting dirty from work/play). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Survival|Config", meta=(ClampMin="0.0"))
+	float HygieneDecayPerSecond = 0.25f;
+
+	/** Hygiene and thirst restored per second while standing in water (washing). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Survival|Config", meta=(ClampMin="0.0"))
+	float WaterWashPerSecond = 15.f;
+
 	/** Health lost per second while hunger OR thirst is at zero. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Survival|Config", meta=(ClampMin="0.0"))
 	float StarvingHealthLossPerSecond = 1.0f;
@@ -131,6 +146,12 @@ private:
 
 	/** Draw the stats on screen (debug). */
 	void DrawDebug() const;
+
+	/** True while the owner is standing in the level's water (actor tagged "EveraWater"). */
+	bool IsOwnerInWater();
+
+	/** Cached water body found in the level (lazily located by tag). */
+	TWeakObjectPtr<AActor> WaterActor;
 
 	bool bHasDied = false;
 };

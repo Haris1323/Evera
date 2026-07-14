@@ -10,7 +10,8 @@
 UENUM(BlueprintType)
 enum class ECraftableItem : uint8
 {
-	StoneAxe UMETA(DisplayName = "Stone Axe")
+	StoneAxe     UMETA(DisplayName = "Stone Axe"),
+	StonePickaxe UMETA(DisplayName = "Stone Pickaxe")
 };
 
 /** How many of a crafted item the player owns. */
@@ -45,6 +46,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Crafting")
 	bool TryCraftStoneAxe();
 
+	/** Try to craft a stone pickaxe (for mining stone). Server-side. Returns success. */
+	UFUNCTION(BlueprintCallable, Category="Crafting")
+	bool TryCraftStonePickaxe();
+
+	UFUNCTION(BlueprintPure, Category="Crafting")
+	int32 GetStonePickaxeWoodCost() const { return StonePickaxeWoodCost; }
+
+	UFUNCTION(BlueprintPure, Category="Crafting")
+	int32 GetStonePickaxeStoneCost() const { return StonePickaxeStoneCost; }
+
 	/** How many of a crafted item the owner has. */
 	UFUNCTION(BlueprintPure, Category="Crafting")
 	int32 GetCraftedCount(ECraftableItem Item) const;
@@ -73,6 +84,13 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
 	int32 StoneAxeStoneCost = 3;
+
+	/** Stone pickaxe recipe cost. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
+	int32 StonePickaxeWoodCost = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
+	int32 StonePickaxeStoneCost = 5;
 
 private:
 	void AddCrafted(ECraftableItem Item, int32 Amount);

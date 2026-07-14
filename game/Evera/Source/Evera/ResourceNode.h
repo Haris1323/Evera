@@ -40,6 +40,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Resource")
 	void SetResourceType(EResourceType NewType) { ResourceType = NewType; }
 
+	/** Which resource this node yields (Wood needs an axe, Stone needs a pickaxe). */
+	EResourceType GetResourceType() const { return ResourceType; }
+
+	/** Set the resource type by index (0 = Wood, 1 = Stone). Convenience for
+	 *  editor scripting where the enum type is awkward to reference. */
+	UFUNCTION(BlueprintCallable, Category="Resource")
+	void SetResourceTypeIndex(int32 Index) { ResourceType = (Index != 0) ? EResourceType::Stone : EResourceType::Wood; }
+
+	/**
+	 *  Use this exact mesh for the node's visual instead of the default type mesh.
+	 *  Lets us convert level-placed decorative trees/rocks into harvestable nodes
+	 *  while keeping their original look and placement. Call before FinishSpawning.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Resource")
+	void SetVisualMesh(UStaticMesh* InMesh) { VisualMeshOverride = InMesh; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -60,6 +76,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource")
 	EResourceType ResourceType = EResourceType::Wood;
 
+	/** Optional exact mesh to display (set via SetVisualMesh); null uses the type default. */
+	UPROPERTY()
+	UStaticMesh* VisualMeshOverride = nullptr;
+
 	/** Total amount available before the node is depleted. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource", meta=(ClampMin="1"))
 	int32 TotalAmount = 20;
@@ -72,19 +92,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource", meta=(ClampMin="0.0"))
 	float RespawnSeconds = 15.f;
 
-	/** Random tree scale range (real Megascans trees are ~15 m tall at 1.0). */
+	/** Random tree scale range (stylized trees are ~full size at 1.0). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource|Visual", meta=(ClampMin="0.01"))
-	float TreeScaleMin = 0.12f;
+	float TreeScaleMin = 0.8f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource|Visual", meta=(ClampMin="0.01"))
-	float TreeScaleMax = 0.35f;
+	float TreeScaleMax = 1.3f;
 
 	/** Random stone scale range (variety: small rocks to big boulders). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource|Visual", meta=(ClampMin="0.01"))
-	float StoneScaleMin = 0.2f;
+	float StoneScaleMin = 0.6f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Resource|Visual", meta=(ClampMin="0.01"))
-	float StoneScaleMax = 0.8f;
+	float StoneScaleMax = 1.4f;
 
 	/** Amount still remaining (replicated for UI/feedback). */
 	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Resource")

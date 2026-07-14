@@ -14,7 +14,11 @@ class UInventoryComponent;
 class USkillsComponent;
 class UCraftingComponent;
 class UStaticMeshComponent;
+class UInstancedStaticMeshComponent;
 class AResourceNode;
+class ABuildPiece;
+class AResourcePickup;
+enum class EBuildPieceType : uint8;
 class UAnimMontage;
 class UAnimSequence;
 class UInputAction;
@@ -139,10 +143,17 @@ protected:
 	void PlayGatherAnim();
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void PawnClientRestart() override;
 
-	/** Prototype helper: spawn a ring of gatherable nodes around the player on start. */
+	/** Force game input mode + hide the cursor (the menu leaves input in UI mode). */
+	void EnsureGameInput();
+
+	/** Prototype helper: spawn a ring of gatherable nodes around the player on start.
+	 *  Off by default now that the world (EveraForest) ships real, level-placed
+	 *  harvestable nodes. Turn on only when testing in an empty level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
-	bool bSpawnTestResourceNodes = true;
+	bool bSpawnTestResourceNodes = false;
 
 	/** Interact with whatever the player is looking at (bound to the E key). */
 	void Interact();
@@ -151,11 +162,120 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerGather(AResourceNode* Node);
 
+	/** Server RPC that harvests a single foliage tree instance (fells it, grants
+	 *  wood). Lets the whole painted forest be chopped without a per-tree actor. */
+	UFUNCTION(Server, Reliable)
+	void ServerGatherFoliage(UInstancedStaticMeshComponent* FoliageComp, int32 InstanceIndex);
+
 	/** Try to craft a stone axe (bound to the C key). */
 	void CraftStoneAxe();
 
+	/** Try to craft a stone pickaxe (bound to the V key). */
+	void CraftStonePickaxe();
+
+	UFUNCTION(Server, Reliable)
+	void ServerCraftStonePickaxe();
+
+	/** Server RPC: collect a loose ground pickup (no tool needed). */
+	UFUNCTION(Server, Reliable)
+	void ServerGatherPickup(AResourcePickup* Pickup);
+
+	/** Per-tree remaining health for foliage (keyed by world position, so it is
+	 *  stable even when instance indices shift on removal). */
+	TMap<FIntVector, int32> FoliageHealth;
+
+	/** How much "health" a foliage tree has before it is felled. */
+	UPROPERTY(EditAnywhere, Category="Gathering")
+	int32 TreeHealthMax = 20;
+
 	/** Open/close the backpack inventory screen (bound to the I key). */
 	void ToggleInventory();
+
+	// ---- Building (place modular house pieces on a grid) --------------------
+
+	/** Enter/leave build mode (bound to the B key). Spawns/destroys the preview. */
+	void ToggleBuildMode();
+
+	/** Switch to the next piece type: wall -> doorway -> window -> ... (N key). */
+	void CycleBuildPiece();
+
+	/** Toggle the palette between structure and furniture (Tab key). */
+	void ToggleBuildCategory();
+
+	/** Re-apply the current selection (structure piece or furniture) to the ghost. */
+	void RefreshBuildGhost();
+
+	/** Select a piece by palette index (number keys 1-6). */
+	void SelectBuildPiece(int32 Index);
+	void SelectBuild1() { SelectBuildPiece(0); }
+	void SelectBuild2() { SelectBuildPiece(1); }
+	void SelectBuild3() { SelectBuildPiece(2); }
+	void SelectBuild4() { SelectBuildPiece(3); }
+	void SelectBuild5() { SelectBuildPiece(4); }
+	void SelectBuild6() { SelectBuildPiece(5); }
+
+	/** Rotate the piece to place by 90 degrees (R key). */
+	void RotateBuildPiece();
+
+	/** Raise/lower the floor level pieces are placed at (build up, storey by storey). */
+	void RaiseBuildLevel();
+	void LowerBuildLevel();
+
+	/** Place the currently previewed piece, spending wood (left mouse button). */
+	void PlaceBuildPiece();
+
+	/** Remove the built piece the player is looking at, refunding some wood (X key). */
+	void RemoveBuildPiece();
+
+	/** Move/colour the placement preview each frame while in build mode. */
+	void UpdateBuildGhost();
+
+	/** Work out where the previewed piece would be placed (traced + grid-snapped). */
+	bool ComputeBuildPlacement(FTransform& OutXform) const;
+
+	/** Server RPC: authoritatively spend wood and spawn a piece. */
+	UFUNCTION(Server, Reliable)
+	void ServerPlaceBuildPiece(uint8 TypeIndex, FTransform Xform);
+
+	/** Server RPC: authoritatively remove a piece and refund some wood. */
+	UFUNCTION(Server, Reliable)
+	void ServerRemoveBuildPiece(ABuildPiece* Piece);
+
+	/** Server RPC: authoritatively spend wood and place a furniture prop. */
+	UFUNCTION(Server, Reliable)
+	void ServerPlaceFurniture(uint8 FurnitureIdx, FTransform Xform);
+
+	/** How far in front of the camera a piece can be placed (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Build")
+	float BuildReach = 900.f;
+
+	bool bBuildMode = false;
+	bool bFurnitureMode = false;
+	EBuildPieceType BuildPieceType;
+	int32 FurnitureIndex = 0;
+	float BuildYaw = 0.f;
+	int32 BuildLevel = 0;
+
+	UPROPERTY()
+	ABuildPiece* BuildGhost = nullptr;
+
+public:
+	/** Whether the player is currently in build mode (for the HUD). */
+	bool IsBuildMode() const { return bBuildMode; }
+
+	/** Whether the palette is showing furniture rather than structure (for the HUD). */
+	bool IsFurnitureMode() const { return bFurnitureMode; }
+
+	/** Which piece the player is about to place (for the HUD). */
+	EBuildPieceType GetBuildPieceType() const { return BuildPieceType; }
+
+	/** Selected furniture index (for the HUD). */
+	int32 GetFurnitureIndex() const { return FurnitureIndex; }
+
+	/** Current floor level pieces are placed at (for the HUD). */
+	int32 GetBuildLevel() const { return BuildLevel; }
+
+protected:
 
 	/** Hand bone/socket the axe attaches to. */
 	UPROPERTY(EditAnywhere, Category="Equipment")
@@ -171,18 +291,66 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Equipment")
 	float AxeGripScale = 1.0f;
 
-	/** Backpack attachment (bone/socket + transform on the back; tune to fit). */
+	/** Backpack attachment (bone/socket + transform on the back; tune to fit).
+	 *  The hero skeleton has a dedicated "BackpackBone" for exactly this. */
 	UPROPERTY(EditAnywhere, Category="Equipment")
-	FName BackpackSocket = TEXT("spine_05");
+	FName BackpackSocket = TEXT("BackpackBone");
 
 	UPROPERTY(EditAnywhere, Category="Equipment")
-	FVector BackpackLocation = FVector(0.f, -16.f, 0.f);
+	FVector BackpackLocation = FVector(0.f, 0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category="Equipment")
-	FRotator BackpackRotation = FRotator(90.f, 0.f, 180.f);
+	FRotator BackpackRotation = FRotator(0.f, 0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category="Equipment")
 	float BackpackScale = 1.0f;
+
+	// ---- Hero avatar (chibi mesh + code-driven idle/walk, no AnimBP) ----
+
+	UPROPERTY(EditAnywhere, Category="Hero")
+	FString HeroMeshPath = TEXT("/Game/RPGHeroSquad/Mesh/Character/SK_TinyHeroPolyart.SK_TinyHeroPolyart");
+
+	UPROPERTY(EditAnywhere, Category="Hero")
+	FString HeroIdlePath = TEXT("/Game/RPGHeroSquad/Animation/TinyHero/Anim_Idle_Normal_TinyHero.Anim_Idle_Normal_TinyHero");
+
+	UPROPERTY(EditAnywhere, Category="Hero")
+	FString HeroWalkPath = TEXT("/Game/RPGHeroSquad/Animation/TinyHero/InPlace/Anim_MoveFWD_Normal_InPlace_TinyHero.Anim_MoveFWD_Normal_InPlace_TinyHero");
+
+	/** Mesh transform on the capsule (tune to fit the chibi). */
+	UPROPERTY(EditAnywhere, Category="Hero")
+	FVector HeroMeshOffset = FVector(0.f, 0.f, -78.f);
+
+	UPROPERTY(EditAnywhere, Category="Hero")
+	FRotator HeroMeshRotation = FRotator(0.f, -90.f, 0.f);
+
+	UPROPERTY(EditAnywhere, Category="Hero")
+	float HeroMeshScale = 1.0f;
+
+	UPROPERTY()
+	UAnimSequence* HeroIdleAnim = nullptr;
+
+	UPROPERTY()
+	UAnimSequence* HeroWalkAnim = nullptr;
+
+	UPROPERTY()
+	UAnimSequence* HeroChopAnim = nullptr;
+
+	UAnimSequence* CurrentHeroAnim = nullptr;
+
+	/** World time until which the one-shot gather/chop animation is playing. */
+	float GatherAnimEndTime = 0.f;
+
+	/** Swap in the chibi hero mesh + load its idle/walk clips. */
+	void SetupHeroAvatar();
+
+	/** Play walk while moving, idle while still (no AnimBP needed). */
+	void UpdateLocomotionAnim();
+
+	/** Little flies that buzz around the player when hygiene gets low. */
+	UPROPERTY()
+	TArray<UStaticMeshComponent*> Flies;
+
+	void UpdateFlies(float TimeSeconds);
 
 	/** Show/hide the held axe based on whether the player owns one. */
 	UFUNCTION()

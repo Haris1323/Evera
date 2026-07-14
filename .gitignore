@@ -60,3 +60,20 @@ assets/animations/
 
 # CozyNature Fab pack (re-download from Fab; large marketplace asset)
 game/Evera/Content/CozyNature/
+
+# Stylized PBR Nature pack (re-download from Fab; large marketplace asset)
+game/Evera/Content/Stylized_PBR_Nature/
+
+# More large re-downloadable Fab packs (present locally, rebuilt/re-imported as needed)
+game/Evera/Content/Fantastic_Village_Pack/
+game/Evera/Content/GV_FreeShrubsPack/
+game/Evera/Content/Maxtree/
+game/Evera/Content/HighPoly_Tree_Model/
+game/Evera/Content/Mobile_Trees/
+game/Evera/Content/RPGHeroSquad/
+game/Evera/Content/Realistic_Cow/
+
+# Built play map is ~278 MB (rebuildable from the nature pack via script) —
+# exceeds GitHub's 100 MB per-file limit, so it is not committed.
+game/Evera/Content/Evera/Maps/EveraForest.umap
+game/Evera/Content/Evera/Maps/EveraForest/
