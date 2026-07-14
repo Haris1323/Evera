@@ -69,9 +69,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Pet")
 	FString DogIdleAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Dog_001_Anim_Dog_001_idle.ANIM_Dog_001_Anim_Dog_001_idle");
 
-	/** Yaw added to the mesh facing (flip if the dog faces sideways when trotting). */
+	/** Yaw added to the mesh facing (this pack's models face sideways, so -90). */
 	UPROPERTY(EditAnywhere, Category="Pet")
-	float MeshYawOffset = 0.f;
+	float MeshYawOffset = -90.f;
 
 	/** The dog is auto-scaled to about this tall (cm) — a small, kid-friendly pup. */
 	UPROPERTY(EditAnywhere, Category="Pet")

@@ -334,13 +334,17 @@ void AEveraCharacter::BeginPlay()
 		// Populate the world with a mix of stylized, animated, tameable animals
 		// (Animals_Free pack). Each is an AWanderingAnimal pointed at its species;
 		// the player can tame any of them (E) onto their farm.
-		struct FSpeciesSpawn { const TCHAR* Name; float CapHalf; float CapRadius; int32 Count; };
+		// Bigger herds — the world is meant for multiplayer, so there's plenty of
+		// wildlife for everyone to find and tame.
+		// WalkIdx = the clip number in the walk anim's name (most are 001, but the
+		// chicken's walk clip is numbered 003 in this pack).
+		struct FSpeciesSpawn { const TCHAR* Name; float CapHalf; float CapRadius; int32 Count; int32 WalkIdx; };
 		static const FSpeciesSpawn Species[] = {
-			{ TEXT("Deer"),    80.f, 45.f, 2 },
-			{ TEXT("Chicken"), 26.f, 18.f, 3 },
-			{ TEXT("Kitty"),   24.f, 16.f, 2 },
-			{ TEXT("Pinguin"), 36.f, 22.f, 2 },
-			{ TEXT("Tiger"),   75.f, 55.f, 1 },
+			{ TEXT("Deer"),    80.f, 45.f, 8,  1 },
+			{ TEXT("Chicken"), 26.f, 18.f, 10, 3 },
+			{ TEXT("Kitty"),   24.f, 16.f, 8,  1 },
+			{ TEXT("Pinguin"), 36.f, 22.f, 4,  1 },
+			{ TEXT("Tiger"),   75.f, 55.f, 2,  1 },
 		};
 		int32 AnimalIdx = 0;
 		for (const FSpeciesSpawn& Sp : Species)
@@ -348,8 +352,9 @@ void AEveraCharacter::BeginPlay()
 			for (int32 c = 0; c < Sp.Count; ++c)
 			{
 				++AnimalIdx;
-				const float Ang = 0.7f * AnimalIdx;
-				const float Rad = 700.f + 90.f * (AnimalIdx % 7);
+				// Spread them out in a widening spiral so they're not all clustered.
+				const float Ang = 2.39996f * AnimalIdx; // golden-angle scatter
+				const float Rad = 650.f + 150.f * (AnimalIdx % 12);
 				FVector Pos = GetActorLocation() + FVector(FMath::Cos(Ang) * Rad, FMath::Sin(Ang) * Rad, 0.f);
 				FHitResult G;
 				FCollisionQueryParams GP(FName(TEXT("AnimalSpawn")), false, this);
@@ -364,9 +369,11 @@ void AEveraCharacter::BeginPlay()
 				if (A)
 				{
 					const FString MeshP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Meshes/SKM_%s_001.SKM_%s_001"), Sp.Name, Sp.Name);
-					const FString WalkP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Animations/ANIM_%s_001_Anim_%s_001_walk.ANIM_%s_001_Anim_%s_001_walk"), Sp.Name, Sp.Name, Sp.Name, Sp.Name);
+					const FString WalkName = FString::Printf(TEXT("ANIM_%s_001_Anim_%s_%03d_walk"), Sp.Name, Sp.Name, Sp.WalkIdx);
+					const FString WalkP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Animations/%s.%s"), *WalkName, *WalkName);
 					const FString IdleP = FString::Printf(TEXT("/Game/Animals_Free/Animals/Animations/ANIM_%s_001_Anim_%s_001_idle.ANIM_%s_001_Anim_%s_001_idle"), Sp.Name, Sp.Name, Sp.Name, Sp.Name);
-					A->ConfigureSpecies(MeshP, WalkP, IdleP, Sp.Name, 0.f, Sp.CapHalf, Sp.CapRadius);
+					// Mesh faces sideways by default in this pack — rotate to face travel.
+					A->ConfigureSpecies(MeshP, WalkP, IdleP, Sp.Name, -90.f, Sp.CapHalf, Sp.CapRadius);
 					A->FinishSpawning(Xf);
 				}
 			}

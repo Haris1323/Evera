@@ -71,9 +71,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Horse")
 	FString IdleAnimPath = TEXT("/Game/Animals_Free/Animals/Animations/ANIM_Horse_001_Anim_Horse_001_idle.ANIM_Horse_001_Anim_Horse_001_idle");
 
-	/** Yaw added to the mesh facing (flip if a rigged horse faces sideways). */
+	/** Yaw added to the mesh facing (this pack's models face sideways, so -90). */
 	UPROPERTY(EditAnywhere, Category="Horse")
-	float MeshYawOffset = 0.f;
+	float MeshYawOffset = -90.f;
 
 	/** The horse is auto-scaled so it stands about this tall (cm). */
 	UPROPERTY(EditAnywhere, Category="Horse")
