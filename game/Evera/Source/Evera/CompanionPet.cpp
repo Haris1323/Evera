@@ -59,6 +59,10 @@ void ACompanionPet::BeginPlay()
 		SkelBody->SetVisibility(true);
 		SkelBody->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
 		BodyMesh->SetVisibility(false);
+		// Always animate, even if the engine thinks she's briefly off-screen — the
+		// component started hidden, which otherwise leaves the pose frozen.
+		SkelBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		SkelBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 
 		// Auto-fit the dog to a small, kid-friendly size and seat her on the ground.
 		const FBoxSphereBounds B = DogSkel->GetBounds();

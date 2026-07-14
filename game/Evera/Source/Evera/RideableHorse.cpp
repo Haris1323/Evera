@@ -49,6 +49,8 @@ void ARideableHorse::BeginPlay()
 		HorseMesh->SetVisibility(false);
 		HorseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SkelMesh->SetRelativeRotation(FRotator(0.f, MeshYawOffset, 0.f));
+		SkelMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		SkelMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 
 		const FBoxSphereBounds B = Skel->GetBounds();
 		const float RawHeight = B.BoxExtent.Z * 2.f;
