@@ -167,6 +167,24 @@ void AEveraHUD::DrawHUD()
 			DrawText(TOD->IsNight() ? TEXT("Night") : TEXT("Day"), EveraUI::TextDim, CX + 12.f, CY + 6.f, Font);
 			DrawText(TOD->GetTimeString(), EveraUI::GoldBright, CX + 62.f, CY + 10.f, ClockFont, 1.25f);
 		}
+
+		// --- Lea's current task, right under the clock ---
+		if (const ACompanionPet* Pet = Ev->GetCompanion())
+		{
+			const FString Task = Pet->GetQuestText();
+			if (!Task.IsEmpty())
+			{
+				const float QW = 400.f;
+				const float QH = 52.f;
+				const float QX = Canvas->SizeX - QW - 18.f;
+				const float QY = 66.f;
+				DrawRect(EveraUI::A(EveraUI::Ground1, 0.86f), QX, QY, QW, QH);
+				DrawRect(EveraUI::A(EveraUI::Gold, 0.7f), QX, QY, QW, 2.f);
+				DrawText(FString::Printf(TEXT("%s's task  %s"), *Pet->GetPetName(), *Pet->GetQuestProgress()),
+					EveraUI::GoldBright, QX + 12.f, QY + 6.f, Font);
+				DrawText(Task, EveraUI::Text, QX + 12.f, QY + 26.f, Font);
+			}
+		}
 	}
 
 	// --- Build mode banner (top centre) ---

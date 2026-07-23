@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "InventoryComponent.h"
 #include "CraftingComponent.h"
+#include "EveraCharacter.h"
 #include "SkillsComponent.h"
 #include "ResourceTypes.h"
 
@@ -160,6 +161,8 @@ void ACompanionPet::Tick(float DeltaSeconds)
 	}
 	LastPos = GetActorLocation();
 
+	UpdateQuest();
+
 	// Time for a new tip?
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	if (Now >= NextTipTime)
@@ -258,6 +261,100 @@ void ACompanionPet::GroundStick()
 		NewLoc.Z = Hit.ImpactPoint.Z + FootOffset;
 		SetActorLocation(NewLoc);
 	}
+}
+
+// ---- Lea's task list ---------------------------------------------------------
+
+int32 ACompanionPet::NumQuests()
+{
+	return 10;
+}
+
+FString ACompanionPet::QuestDescription(int32 Index)
+{
+	switch (Index)
+	{
+	case 0: return TEXT("Pick up 5 wood from the ground");
+	case 1: return TEXT("Craft your first axe  [C]");
+	case 2: return TEXT("Chop trees until you have 20 wood");
+	case 3: return TEXT("Craft a pickaxe  [V]");
+	case 4: return TEXT("Make friends with an animal  [E]");
+	case 5: return TEXT("Craft a shovel  [H]");
+	case 6: return TEXT("Dig up your first gem  [E] on open ground");
+	case 7: return TEXT("Craft a fishing rod  [Y]");
+	case 8: return TEXT("Catch a fish at the water  [E]");
+	case 9: return TEXT("Pick 5 berries from the bushes  [E]");
+	default: return FString();
+	}
+}
+
+bool ACompanionPet::IsQuestComplete(int32 Index) const
+{
+	if (!OwnerPlayer)
+	{
+		return false;
+	}
+	const UInventoryComponent* Inv = OwnerPlayer->FindComponentByClass<UInventoryComponent>();
+	const UCraftingComponent* Craft = OwnerPlayer->FindComponentByClass<UCraftingComponent>();
+	const AEveraCharacter* Evera = Cast<AEveraCharacter>(OwnerPlayer);
+
+	auto Res = [Inv](EResourceType T) { return Inv ? Inv->GetResourceCount(T) : 0; };
+	auto Made = [Craft](ECraftableItem I) { return Craft ? Craft->GetCraftedCount(I) : 0; };
+
+	switch (Index)
+	{
+	case 0: return Res(EResourceType::Wood) >= 5;
+	case 1: return Made(ECraftableItem::StoneAxe) >= 1;
+	case 2: return Res(EResourceType::Wood) >= 20;
+	case 3: return Made(ECraftableItem::StonePickaxe) >= 1;
+	case 4: return Evera && Evera->GetFarmAnimalCount() >= 1;
+	case 5: return Made(ECraftableItem::StoneShovel) >= 1;
+	case 6: return Res(EResourceType::Gem) >= 1;
+	case 7: return Made(ECraftableItem::FishingRod) >= 1;
+	case 8: return Res(EResourceType::Fish) >= 1;
+	case 9: return Res(EResourceType::Berry) >= 5;
+	default: return false;
+	}
+}
+
+void ACompanionPet::UpdateQuest()
+{
+	if (QuestIndex >= NumQuests())
+	{
+		return; // all done
+	}
+	if (!IsQuestComplete(QuestIndex))
+	{
+		return;
+	}
+
+	// Celebrate, hand out a small thank-you, and set the next goal.
+	++QuestIndex;
+	if (UInventoryComponent* Inv = OwnerPlayer ? OwnerPlayer->FindComponentByClass<UInventoryComponent>() : nullptr)
+	{
+		Inv->AddResource(EResourceType::Wood, 3);
+		Inv->AddResource(EResourceType::Stone, 2);
+	}
+
+	CurrentTip = (QuestIndex >= NumQuests())
+		? TEXT("You did everything on my list — you're amazing! Now go build your dream home!")
+		: FString::Printf(TEXT("Well done! Next: %s"), *QuestDescription(QuestIndex));
+
+	if (GetWorld())
+	{
+		TipHideTime = GetWorld()->GetTimeSeconds() + TipDuration;
+		NextTipTime = GetWorld()->GetTimeSeconds() + TipInterval;
+	}
+}
+
+FString ACompanionPet::GetQuestText() const
+{
+	return (QuestIndex < NumQuests()) ? QuestDescription(QuestIndex) : FString();
+}
+
+FString ACompanionPet::GetQuestProgress() const
+{
+	return FString::Printf(TEXT("%d/%d"), FMath::Min(QuestIndex, NumQuests()), NumQuests());
 }
 
 FString ACompanionPet::GetActiveTip() const

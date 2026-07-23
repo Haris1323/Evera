@@ -36,6 +36,12 @@ public:
 	/** The tip Lea is currently saying, or empty if she's quiet right now. */
 	FString GetActiveTip() const;
 
+	/** The task Lea has set for the player right now (empty once they're all done). */
+	FString GetQuestText() const;
+
+	/** How far through the whole task list the player is, e.g. "3/10". */
+	FString GetQuestProgress() const;
+
 	/** Lea's name (shown in the tip bubble). */
 	const FString& GetPetName() const { return PetName; }
 
@@ -113,6 +119,23 @@ private:
 
 	/** Build a little box-dog stand-in when no real dog model is imported yet. */
 	void BuildStandInDog();
+
+	// ---- Lea's task list (she teaches the game one goal at a time) -----------
+
+	/** Check whether the current task is done, and move on to the next if so. */
+	void UpdateQuest();
+
+	/** Is task Index satisfied by the owner's current state? */
+	bool IsQuestComplete(int32 Index) const;
+
+	/** Which task the player is on. Past the end means everything is done. */
+	int32 QuestIndex = 0;
+
+	/** How many tasks there are in total. */
+	static int32 NumQuests();
+
+	/** The wording Lea uses for task Index. */
+	static FString QuestDescription(int32 Index);
 
 	void FollowOwner(float DeltaSeconds);
 	void GroundStick();
