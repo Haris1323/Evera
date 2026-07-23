@@ -241,6 +241,54 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerEatFood();
 
+	// ---- Crafting the rest of the toolkit -----------------------------------
+
+	void CraftShovel();
+	void CraftTorch();
+	void CraftRod();
+
+	/** Server RPC: craft any recipe by index (see ECraftableItem). */
+	UFUNCTION(Server, Reliable)
+	void ServerCraftItem(uint8 ItemIndex);
+
+	// ---- Digging for buried treasure ----------------------------------------
+
+	/** Server RPC: dig the ground at a spot, maybe turning up a gem. */
+	UFUNCTION(Server, Reliable)
+	void ServerDig(FVector Location);
+
+	/** Spots already dug (quantised), so the same patch can't be farmed forever. */
+	TSet<FIntVector> DugSpots;
+
+	/** Chance (0-1) that a dig turns up a gem rather than plain earth or stone. */
+	UPROPERTY(EditAnywhere, Category="Digging")
+	float GemChance = 0.15f;
+
+	// ---- Fishing -------------------------------------------------------------
+
+	/** Server RPC: start fishing at the water's edge. */
+	UFUNCTION(Server, Reliable)
+	void ServerStartFishing();
+
+	/** Called when the line finally catches something. */
+	void FinishFishing();
+
+	UPROPERTY(EditAnywhere, Category="Fishing")
+	float FishingSeconds = 4.f;
+
+	bool bFishing = false;
+	FTimerHandle FishingTimer;
+
+	// ---- Torch (carry a light after dark) ------------------------------------
+
+	/** Turn the crafted torch on/off (bound to the L key). */
+	void ToggleTorch();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Equipment", meta = (AllowPrivateAccess = "true"))
+	class UPointLightComponent* TorchLight;
+
+	bool bTorchOn = false;
+
 	/** How many animals the player has tamed onto their farm. */
 	int32 FarmAnimalCount = 0;
 
@@ -350,6 +398,12 @@ public:
 
 	/** The day/night driver, so the HUD can show a clock. */
 	AEveraTimeOfDay* GetTimeOfDay() const { return TimeOfDay; }
+
+	/** Whether the player is waiting on a bite (for the HUD). */
+	bool IsFishing() const { return bFishing; }
+
+	/** Whether the carried torch is currently lit (for the HUD). */
+	bool IsTorchOn() const { return bTorchOn; }
 
 protected:
 

@@ -38,7 +38,7 @@ void AEveraHUD::DrawHUD()
 	const float PanelX = 14.f;
 	const float PanelY = 14.f;
 	const float PanelW = 320.f;
-	const float PanelH = 366.f;
+	const float PanelH = 486.f; // grown to fit the full toolkit + farm lines
 	if (PanelTex)
 	{
 		DrawTexture(PanelTex, PanelX, PanelY, PanelW, PanelH, 0.f, 0.f, 1.f, 1.f);
@@ -87,6 +87,8 @@ void AEveraHUD::DrawHUD()
 			{ EResourceType::Stone, ItemStone, FLinearColor(0.52f, 0.53f, 0.56f) },
 			{ EResourceType::Egg,   nullptr,   FLinearColor(0.96f, 0.93f, 0.82f) },
 			{ EResourceType::Milk,  nullptr,   FLinearColor(0.90f, 0.95f, 1.00f) },
+			{ EResourceType::Fish,  nullptr,   FLinearColor(0.55f, 0.75f, 0.90f) },
+			{ EResourceType::Gem,   nullptr,   FLinearColor(0.45f, 0.85f, 0.95f) },
 		};
 		const int32 Cols = 2;
 		const float CellW = 96.f;
@@ -121,15 +123,23 @@ void AEveraHUD::DrawHUD()
 		Y += 20.f;
 	}
 
-	// --- Crafting (tools) ---
+	// --- Crafting (the whole toolkit) ---
 	if (const UCraftingComponent* Craft = Pawn->FindComponentByClass<UCraftingComponent>())
 	{
-		DrawText(FString::Printf(TEXT("Axe %d   Pickaxe %d"),
+		DrawText(FString::Printf(TEXT("Axe %d  Pick %d  Shovel %d"),
 			Craft->GetCraftedCount(ECraftableItem::StoneAxe),
-			Craft->GetCraftedCount(ECraftableItem::StonePickaxe)),
+			Craft->GetCraftedCount(ECraftableItem::StonePickaxe),
+			Craft->GetCraftedCount(ECraftableItem::StoneShovel)),
 			EveraUI::Text, X, Y, Font);
 		Y += 16.f;
-		DrawText(TEXT("[C] Craft Axe   [V] Craft Pickaxe"), EveraUI::TextDim, X, Y, Font);
+		DrawText(FString::Printf(TEXT("Torch %d   Rod %d"),
+			Craft->GetCraftedCount(ECraftableItem::Torch),
+			Craft->GetCraftedCount(ECraftableItem::FishingRod)),
+			EveraUI::Text, X, Y, Font);
+		Y += 16.f;
+		DrawText(TEXT("Craft: [C]Axe [V]Pick [H]Shovel"), EveraUI::TextDim, X, Y, Font);
+		Y += 14.f;
+		DrawText(TEXT("       [T]Torch [Y]Rod   [L] light"), EveraUI::TextDim, X, Y, Font);
 	}
 
 	// --- Farm (tamed animals) ---
@@ -250,6 +260,17 @@ void AEveraHUD::DrawHUD()
 			UFont* HintFont = GEngine ? GEngine->GetMediumFont() : nullptr;
 			DrawText(TEXT("Riding Lea's horse   -   [WASD] ride   [F] get off"),
 				EveraUI::GoldBright, Canvas->SizeX * 0.5f - 190.f, 88.f, HintFont);
+		}
+
+		if (Evera->IsFishing())
+		{
+			UFont* FishFont = GEngine ? GEngine->GetMediumFont() : nullptr;
+			const float FW = 300.f;
+			const float FX = Canvas->SizeX * 0.5f - FW * 0.5f;
+			const float FY = Canvas->SizeY * 0.5f + 60.f;
+			DrawRect(EveraUI::A(EveraUI::Ground1, 0.88f), FX, FY, FW, 40.f);
+			DrawRect(EveraUI::A(EveraUI::Gold, 0.75f), FX, FY, FW, 2.f);
+			DrawText(TEXT("Fishing...  wait for a bite!"), EveraUI::GoldBright, FX + 30.f, FY + 11.f, FishFont);
 		}
 	}
 

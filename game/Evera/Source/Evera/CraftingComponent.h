@@ -11,7 +11,13 @@ UENUM(BlueprintType)
 enum class ECraftableItem : uint8
 {
 	StoneAxe     UMETA(DisplayName = "Stone Axe"),
-	StonePickaxe UMETA(DisplayName = "Stone Pickaxe")
+	StonePickaxe UMETA(DisplayName = "Stone Pickaxe"),
+	/** Digs holes in the ground — sometimes there's treasure buried down there. */
+	StoneShovel  UMETA(DisplayName = "Stone Shovel"),
+	/** Carried light so the world stays playable after dark. */
+	Torch        UMETA(DisplayName = "Torch"),
+	/** Catches fish at the water's edge. */
+	FishingRod   UMETA(DisplayName = "Fishing Rod")
 };
 
 /** How many of a crafted item the player owns. */
@@ -42,6 +48,20 @@ class EVERA_API UCraftingComponent : public UActorComponent
 public:
 	UCraftingComponent();
 
+	/** Craft any item from its recipe, if the owner can afford it. Server-side. */
+	UFUNCTION(BlueprintCallable, Category="Crafting")
+	bool TryCraft(ECraftableItem Item);
+
+	/** Wood/stone a recipe costs (also used by the HUD to show the price). */
+	UFUNCTION(BlueprintPure, Category="Crafting")
+	static int32 GetRecipeWoodCost(ECraftableItem Item);
+
+	UFUNCTION(BlueprintPure, Category="Crafting")
+	static int32 GetRecipeStoneCost(ECraftableItem Item);
+
+	/** Short label for the HUD ("Axe", "Shovel", ...). */
+	static FString GetItemName(ECraftableItem Item);
+
 	/** Try to craft a stone axe from the owner's inventory. Server-side. Returns success. */
 	UFUNCTION(BlueprintCallable, Category="Crafting")
 	bool TryCraftStoneAxe();
@@ -51,20 +71,20 @@ public:
 	bool TryCraftStonePickaxe();
 
 	UFUNCTION(BlueprintPure, Category="Crafting")
-	int32 GetStonePickaxeWoodCost() const { return StonePickaxeWoodCost; }
+	int32 GetStonePickaxeWoodCost() const { return GetRecipeWoodCost(ECraftableItem::StonePickaxe); }
 
 	UFUNCTION(BlueprintPure, Category="Crafting")
-	int32 GetStonePickaxeStoneCost() const { return StonePickaxeStoneCost; }
+	int32 GetStonePickaxeStoneCost() const { return GetRecipeStoneCost(ECraftableItem::StonePickaxe); }
 
 	/** How many of a crafted item the owner has. */
 	UFUNCTION(BlueprintPure, Category="Crafting")
 	int32 GetCraftedCount(ECraftableItem Item) const;
 
 	UFUNCTION(BlueprintPure, Category="Crafting")
-	int32 GetStoneAxeWoodCost() const { return StoneAxeWoodCost; }
+	int32 GetStoneAxeWoodCost() const { return GetRecipeWoodCost(ECraftableItem::StoneAxe); }
 
 	UFUNCTION(BlueprintPure, Category="Crafting")
-	int32 GetStoneAxeStoneCost() const { return StoneAxeStoneCost; }
+	int32 GetStoneAxeStoneCost() const { return GetRecipeStoneCost(ECraftableItem::StoneAxe); }
 
 	UPROPERTY(BlueprintAssignable, Category="Crafting")
 	FOnCraftingChanged OnCraftingChanged;
@@ -78,19 +98,7 @@ protected:
 	UFUNCTION()
 	void OnRep_Crafted();
 
-	/** Stone axe recipe cost. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
-	int32 StoneAxeWoodCost = 5;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
-	int32 StoneAxeStoneCost = 3;
-
-	/** Stone pickaxe recipe cost. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
-	int32 StonePickaxeWoodCost = 3;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crafting|Recipes", meta=(ClampMin="0"))
-	int32 StonePickaxeStoneCost = 5;
+	// Recipe costs live in one place: GetRecipeWoodCost / GetRecipeStoneCost.
 
 private:
 	void AddCrafted(ECraftableItem Item, int32 Amount);

@@ -22,6 +22,8 @@
 #include "Campfire.h"
 #include "WanderingAnimal.h"
 #include "EveraTimeOfDay.h"
+#include "DigHole.h"
+#include "Components/PointLightComponent.h"
 #include "ForestSpawner.h"
 #include "BuildPiece.h"
 #include "EveraGameInstance.h"
@@ -50,6 +52,16 @@ AEveraCharacter::AEveraCharacter()
 
 	// Set size for collision capsule (sized for the ~155 cm chibi hero).
 	GetCapsuleComponent()->InitCapsuleSize(40.f, 78.0f);
+
+	// Carried torch light — off until the player crafts a torch and lights it.
+	TorchLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("TorchLight"));
+	TorchLight->SetupAttachment(RootComponent);
+	TorchLight->SetRelativeLocation(FVector(30.f, 20.f, 40.f));
+	TorchLight->SetLightColor(FLinearColor(1.0f, 0.72f, 0.36f));
+	TorchLight->SetAttenuationRadius(1100.f);
+	TorchLight->SetIntensity(0.f);
+	TorchLight->SetCastShadows(false);
+	TorchLight->SetVisibility(false);
 		
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
@@ -160,6 +172,14 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 	// Eat farm food on the G key.
 	PlayerInputComponent->BindKey(EKeys::G, IE_Pressed, this, &AEveraCharacter::EatFood);
+
+	// Craft the rest of the toolkit: shovel, torch, fishing rod.
+	PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &AEveraCharacter::CraftShovel);
+	PlayerInputComponent->BindKey(EKeys::T, IE_Pressed, this, &AEveraCharacter::CraftTorch);
+	PlayerInputComponent->BindKey(EKeys::Y, IE_Pressed, this, &AEveraCharacter::CraftRod);
+
+	// Light / snuff the carried torch.
+	PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &AEveraCharacter::ToggleTorch);
 
 	// Building: B toggles build mode, N cycles the piece, R rotates it,
 	// left mouse places it, X removes the piece being looked at.
@@ -491,6 +511,18 @@ void AEveraCharacter::Interact()
 				ServerGatherFoliage(Foliage, Hit.Item);
 			}
 		}
+		else if (Hit.GetActor() && Hit.GetActor()->ActorHasTag(TEXT("EveraWater")))
+		{
+			// Water's edge: cast the line if we've made a rod.
+			PlayGatherAnim();
+			ServerStartFishing();
+		}
+		else if (Hit.ImpactNormal.Z > 0.7f)
+		{
+			// Flat open ground: dig here if we're carrying a shovel.
+			PlayGatherAnim();
+			ServerDig(Hit.ImpactPoint);
+		}
 	}
 }
 
@@ -705,6 +737,122 @@ void AEveraCharacter::ServerTameAnimal_Implementation(AWanderingAnimal* Animal)
 	++FarmAnimalCount;
 }
 
+// ---- Crafting the rest of the toolkit --------------------------------------
+
+void AEveraCharacter::CraftShovel() { ServerCraftItem(static_cast<uint8>(ECraftableItem::StoneShovel)); }
+void AEveraCharacter::CraftTorch()  { ServerCraftItem(static_cast<uint8>(ECraftableItem::Torch)); }
+void AEveraCharacter::CraftRod()    { ServerCraftItem(static_cast<uint8>(ECraftableItem::FishingRod)); }
+
+void AEveraCharacter::ServerCraftItem_Implementation(uint8 ItemIndex)
+{
+	if (Crafting)
+	{
+		Crafting->TryCraft(static_cast<ECraftableItem>(ItemIndex));
+	}
+}
+
+// ---- Digging for buried treasure -------------------------------------------
+
+void AEveraCharacter::ServerDig_Implementation(FVector Location)
+{
+	UCraftingComponent* Craft = FindComponentByClass<UCraftingComponent>();
+	if (!Craft || Craft->GetCraftedCount(ECraftableItem::StoneShovel) <= 0)
+	{
+		return; // you need a shovel to dig
+	}
+	if (FVector::Dist(GetActorLocation(), Location) > MaxGatherDistance)
+	{
+		return;
+	}
+
+	// One hole per patch of ground, so a single spot can't be farmed forever.
+	const FIntVector Key(FMath::RoundToInt(Location.X / 200.f),
+		FMath::RoundToInt(Location.Y / 200.f),
+		FMath::RoundToInt(Location.Z / 200.f));
+	if (DugSpots.Contains(Key))
+	{
+		return;
+	}
+	DugSpots.Add(Key);
+
+	// Leave a visible hole behind.
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	GetWorld()->SpawnActor<ADigHole>(ADigHole::StaticClass(),
+		FTransform(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Location + FVector(0, 0, 1.f)), SP);
+
+	// What's buried down there? Mostly stone, sometimes a gem — the exciting find.
+	UInventoryComponent* Inv = FindComponentByClass<UInventoryComponent>();
+	USkillsComponent* SkillsComp = FindComponentByClass<USkillsComponent>();
+	if (!Inv)
+	{
+		return;
+	}
+
+	if (FMath::FRand() < GemChance)
+	{
+		Inv->AddResource(EResourceType::Gem, 1);
+	}
+	else
+	{
+		Inv->AddResource(EResourceType::Stone, FMath::RandRange(1, 3));
+	}
+
+	if (SkillsComp)
+	{
+		SkillsComp->AddXP(ESkillType::Mining, 3.f);
+	}
+}
+
+// ---- Fishing ----------------------------------------------------------------
+
+void AEveraCharacter::ServerStartFishing_Implementation()
+{
+	UCraftingComponent* Craft = FindComponentByClass<UCraftingComponent>();
+	if (!Craft || Craft->GetCraftedCount(ECraftableItem::FishingRod) <= 0)
+	{
+		return; // you need a rod to fish
+	}
+	if (bFishing)
+	{
+		return; // already waiting on a bite
+	}
+
+	bFishing = true;
+	GetWorldTimerManager().SetTimer(FishingTimer, this, &AEveraCharacter::FinishFishing, FishingSeconds, false);
+}
+
+void AEveraCharacter::FinishFishing()
+{
+	bFishing = false;
+	if (!HasAuthority())
+	{
+		return;
+	}
+	if (UInventoryComponent* Inv = FindComponentByClass<UInventoryComponent>())
+	{
+		Inv->AddResource(EResourceType::Fish, 1);
+	}
+}
+
+// ---- Torch -------------------------------------------------------------------
+
+void AEveraCharacter::ToggleTorch()
+{
+	UCraftingComponent* Craft = FindComponentByClass<UCraftingComponent>();
+	if (!Craft || Craft->GetCraftedCount(ECraftableItem::Torch) <= 0)
+	{
+		return; // nothing to light yet
+	}
+
+	bTorchOn = !bTorchOn;
+	if (TorchLight)
+	{
+		TorchLight->SetVisibility(bTorchOn);
+		TorchLight->SetIntensity(bTorchOn ? 4200.f : 0.f);
+	}
+}
+
 void AEveraCharacter::EatFood()
 {
 	ServerEatFood();
@@ -721,8 +869,12 @@ void AEveraCharacter::ServerEatFood_Implementation()
 
 	const float Max = Stats->GetMaxValue();
 
-	// Eggs fill you up; milk is lighter but also quenches thirst.
-	if (Inv->RemoveResource(EResourceType::Egg, 1))
+	// Fish is the biggest meal; eggs fill you up; milk is lighter but also quenches thirst.
+	if (Inv->RemoveResource(EResourceType::Fish, 1))
+	{
+		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 40.f);
+	}
+	else if (Inv->RemoveResource(EResourceType::Egg, 1))
 	{
 		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 25.f);
 	}

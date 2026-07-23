@@ -98,6 +98,8 @@ void AResourcePickup::ApplyLook()
 		case EResourceType::Wood: Tint = FLinearColor(0.40f, 0.24f, 0.10f); break; // brown
 		case EResourceType::Egg:  Tint = FLinearColor(0.96f, 0.93f, 0.82f); break; // cream
 		case EResourceType::Milk: Tint = FLinearColor(0.97f, 0.97f, 1.00f); break; // white
+		case EResourceType::Gem:  Tint = FLinearColor(0.35f, 0.90f, 1.00f); break; // bright cyan
+		case EResourceType::Fish: Tint = FLinearColor(0.50f, 0.72f, 0.92f); break; // silvery blue
 		default: break;
 		}
 		MID->SetVectorParameterValue(TEXT("Color"), Tint);

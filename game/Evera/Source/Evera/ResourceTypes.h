@@ -13,7 +13,11 @@ enum class EResourceType : uint8
 	Stone UMETA(DisplayName = "Stone"),
 	/** Food produced by the player's tamed farm animals. */
 	Egg   UMETA(DisplayName = "Egg"),
-	Milk  UMETA(DisplayName = "Milk")
+	Milk  UMETA(DisplayName = "Milk"),
+	/** Treasure dug up with a shovel — the rare, exciting find. */
+	Gem   UMETA(DisplayName = "Gem"),
+	/** Caught with a fishing rod at the water's edge. */
+	Fish  UMETA(DisplayName = "Fish")
 };
 
 /** A single stack of a resource held in an inventory. */
