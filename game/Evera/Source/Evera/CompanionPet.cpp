@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
@@ -171,10 +172,9 @@ void ACompanionPet::Tick(float DeltaSeconds)
 
 void ACompanionPet::UpdateDogAnim(float DeltaSeconds)
 {
-	const float Speed = (DeltaSeconds > 0.f)
-		? FVector::Dist2D(GetActorLocation(), LastPos) / DeltaSeconds
-		: 0.f;
-	UAnimSequence* Want = (Speed > 12.f) ? WalkAnim : IdleAnim;
+	// Drive the clip from the movement STATE, not the instantaneous speed: speed
+	// flickers frame to frame, and every flicker restarted the walk clip at frame 0.
+	UAnimSequence* Want = bMoving ? WalkAnim : IdleAnim;
 	if (Want && Want != CurrentAnim)
 	{
 		PlayDogClip(Want);
@@ -203,8 +203,19 @@ void ACompanionPet::FollowOwner(float DeltaSeconds)
 	ToOwner.Z = 0.f;
 	const float Dist = ToOwner.Size();
 
-	// Catch up when the player wanders off; hold position when nicely close.
-	if (Dist > FollowNear)
+	// Hysteresis: she starts trotting once she falls behind FollowNear and keeps
+	// going until she's back within StopDistance. Without that gap she'd start and
+	// stop every few frames, restarting the walk clip so her legs never stride.
+	if (!bMoving && Dist > FollowNear)
+	{
+		bMoving = true;
+	}
+	else if (bMoving && Dist < StopDistance)
+	{
+		bMoving = false;
+	}
+
+	if (bMoving)
 	{
 		const FVector Dir = ToOwner.GetSafeNormal();
 		// Speed up the further behind she is, so she never gets left behind.
@@ -296,6 +307,8 @@ FString ACompanionPet::ChooseTip()
 		TEXT("Press I to open your backpack and see everything you've collected."),
 		TEXT("See the horse? Walk up to it and press F to ride together!"),
 		TEXT("Look at a cow or deer and press E to tame it for your farm!"),
+		TEXT("Tamed chickens lay eggs and cows give milk — pick them up off the ground!"),
+		TEXT("Hungry? Press G to eat an egg. Milk helps with thirst too!"),
 		TEXT("Build a campfire, then look at it and press E to light it and warm up!"),
 		TEXT("Fences (in the build menu) make a cosy pen for your farm animals."),
 		TEXT("It gets dark at night — a campfire keeps things bright and warm!"),

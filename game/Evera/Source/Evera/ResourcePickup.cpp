@@ -55,6 +55,24 @@ void AResourcePickup::ApplyLook()
 		Mesh->SetRelativeRotation(FRotator(90.f, 0.f, 0.f)); // lay the log down
 		Mesh->SetRelativeScale3D(FVector(0.28f, 0.28f, 0.6f));
 	}
+	else if (ResourceType == EResourceType::Egg)
+	{
+		if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
+		{
+			Mesh->SetStaticMesh(Sphere);
+		}
+		Mesh->SetRelativeRotation(FRotator::ZeroRotator);
+		Mesh->SetRelativeScale3D(FVector(0.18f, 0.18f, 0.24f)); // a little egg
+	}
+	else if (ResourceType == EResourceType::Milk)
+	{
+		if (UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")))
+		{
+			Mesh->SetStaticMesh(Cyl);
+		}
+		Mesh->SetRelativeRotation(FRotator::ZeroRotator);
+		Mesh->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.3f)); // a bottle of milk
+	}
 	else
 	{
 		if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
@@ -74,9 +92,15 @@ void AResourcePickup::ApplyLook()
 	}
 	if (UMaterialInstanceDynamic* MID = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr)
 	{
-		MID->SetVectorParameterValue(TEXT("Color"), ResourceType == EResourceType::Wood
-			? FLinearColor(0.40f, 0.24f, 0.10f)
-			: FLinearColor(0.52f, 0.53f, 0.56f));
+		FLinearColor Tint(0.52f, 0.53f, 0.56f); // stone grey
+		switch (ResourceType)
+		{
+		case EResourceType::Wood: Tint = FLinearColor(0.40f, 0.24f, 0.10f); break; // brown
+		case EResourceType::Egg:  Tint = FLinearColor(0.96f, 0.93f, 0.82f); break; // cream
+		case EResourceType::Milk: Tint = FLinearColor(0.97f, 0.97f, 1.00f); break; // white
+		default: break;
+		}
+		MID->SetVectorParameterValue(TEXT("Color"), Tint);
 		Mesh->SetMaterial(0, MID);
 	}
 }

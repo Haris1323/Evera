@@ -80,9 +80,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Pet")
 	FString PetName = TEXT("Lea");
 
-	/** Stay at least this close, but start catching up past FollowFar. */
+	/** Start trotting once she falls this far behind... */
 	UPROPERTY(EditAnywhere, Category="Pet")
 	float FollowNear = 220.f;
+
+	/** ...and keep trotting until she's this close again. The gap between the two
+	 *  is deliberate: without it she flips between walk and idle every few frames,
+	 *  which restarts the walk clip constantly and freezes her legs mid-stride. */
+	UPROPERTY(EditAnywhere, Category="Pet")
+	float StopDistance = 130.f;
 
 	UPROPERTY(EditAnywhere, Category="Pet")
 	float FollowFar = 900.f;
@@ -116,6 +122,9 @@ private:
 	void PlayDogClip(UAnimSequence* Clip);
 
 	bool bRigged = false;
+
+	/** True while she's actively trotting after her owner (drives walk vs idle). */
+	bool bMoving = false;
 	UPROPERTY() UAnimSequence* WalkAnim = nullptr;
 	UPROPERTY() UAnimSequence* IdleAnim = nullptr;
 	UAnimSequence* CurrentAnim = nullptr;

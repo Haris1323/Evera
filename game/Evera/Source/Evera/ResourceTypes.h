@@ -10,7 +10,10 @@ UENUM(BlueprintType)
 enum class EResourceType : uint8
 {
 	Wood  UMETA(DisplayName = "Wood"),
-	Stone UMETA(DisplayName = "Stone")
+	Stone UMETA(DisplayName = "Stone"),
+	/** Food produced by the player's tamed farm animals. */
+	Egg   UMETA(DisplayName = "Egg"),
+	Milk  UMETA(DisplayName = "Milk")
 };
 
 /** A single stack of a resource held in an inventory. */

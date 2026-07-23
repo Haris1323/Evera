@@ -81,10 +81,12 @@ void AEveraHUD::DrawHUD()
 	if (const UInventoryComponent* Inventory = Pawn->FindComponentByClass<UInventoryComponent>())
 	{
 		// Add new resources here as the game gains them — the grid grows on its own.
-		struct FResChip { EResourceType Type; UTexture2D* Icon; };
+		struct FResChip { EResourceType Type; UTexture2D* Icon; FLinearColor Swatch; };
 		const FResChip Chips[] = {
-			{ EResourceType::Wood,  ItemWood },
-			{ EResourceType::Stone, ItemStone },
+			{ EResourceType::Wood,  ItemWood,  FLinearColor(0.40f, 0.24f, 0.10f) },
+			{ EResourceType::Stone, ItemStone, FLinearColor(0.52f, 0.53f, 0.56f) },
+			{ EResourceType::Egg,   nullptr,   FLinearColor(0.96f, 0.93f, 0.82f) },
+			{ EResourceType::Milk,  nullptr,   FLinearColor(0.90f, 0.95f, 1.00f) },
 		};
 		const int32 Cols = 2;
 		const float CellW = 96.f;
@@ -97,6 +99,12 @@ void AEveraHUD::DrawHUD()
 			if (Chips[i].Icon)
 			{
 				DrawTexture(Chips[i].Icon, CX, CY, 22.f, 22.f, 0.f, 0.f, 1.f, 1.f);
+			}
+			else
+			{
+				// No painted icon yet (farm food): a small gold-framed colour swatch.
+				DrawRect(EveraUI::A(EveraUI::Gold, 0.75f), CX + 1.f, CY + 3.f, 20.f, 18.f);
+				DrawRect(Chips[i].Swatch, CX + 3.f, CY + 5.f, 16.f, 14.f);
 			}
 			DrawText(FString::Printf(TEXT("%d"), Inventory->GetResourceCount(Chips[i].Type)),
 				EveraUI::Text, CX + 28.f, CY + 4.f, Font);
@@ -128,7 +136,7 @@ void AEveraHUD::DrawHUD()
 	if (const AEveraCharacter* Ev = Cast<AEveraCharacter>(Pawn))
 	{
 		Y += 20.f;
-		DrawText(FString::Printf(TEXT("Farm animals: %d"), Ev->GetFarmAnimalCount()),
+		DrawText(FString::Printf(TEXT("Farm animals: %d      [G] Eat"), Ev->GetFarmAnimalCount()),
 			FLinearColor(0.72f, 0.92f, 0.72f), X, Y, Font);
 	}
 

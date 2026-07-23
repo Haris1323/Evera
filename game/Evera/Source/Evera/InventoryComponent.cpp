@@ -105,6 +105,8 @@ FString UInventoryComponent::ResourceName(EResourceType Type)
 	{
 	case EResourceType::Wood:  return TEXT("Wood");
 	case EResourceType::Stone: return TEXT("Stone");
+	case EResourceType::Egg:   return TEXT("Egg");
+	case EResourceType::Milk:  return TEXT("Milk");
 	default:                   return TEXT("Resource");
 	}
 }

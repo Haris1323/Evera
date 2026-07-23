@@ -158,6 +158,9 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	// Mount / dismount the nearest horse on the F key.
 	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &AEveraCharacter::MountToggle);
 
+	// Eat farm food on the G key.
+	PlayerInputComponent->BindKey(EKeys::G, IE_Pressed, this, &AEveraCharacter::EatFood);
+
 	// Building: B toggles build mode, N cycles the piece, R rotates it,
 	// left mouse places it, X removes the piece being looked at.
 	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &AEveraCharacter::ToggleBuildMode);
@@ -702,6 +705,34 @@ void AEveraCharacter::ServerTameAnimal_Implementation(AWanderingAnimal* Animal)
 	++FarmAnimalCount;
 }
 
+void AEveraCharacter::EatFood()
+{
+	ServerEatFood();
+}
+
+void AEveraCharacter::ServerEatFood_Implementation()
+{
+	UInventoryComponent* Inv = FindComponentByClass<UInventoryComponent>();
+	USurvivalStatsComponent* Stats = FindComponentByClass<USurvivalStatsComponent>();
+	if (!Inv || !Stats)
+	{
+		return;
+	}
+
+	const float Max = Stats->GetMaxValue();
+
+	// Eggs fill you up; milk is lighter but also quenches thirst.
+	if (Inv->RemoveResource(EResourceType::Egg, 1))
+	{
+		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 25.f);
+	}
+	else if (Inv->RemoveResource(EResourceType::Milk, 1))
+	{
+		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 12.f);
+		Stats->Thirst = FMath::Min(Max, Stats->Thirst + 25.f);
+	}
+}
+
 // ---- Building --------------------------------------------------------------
 
 void AEveraCharacter::Tick(float DeltaSeconds)
@@ -791,7 +822,12 @@ void AEveraCharacter::SetupHeroAvatar()
 	// Drop any incompatible mannequin anim blueprint before swapping skeletons.
 	MeshComp->SetAnimInstanceClass(nullptr);
 	MeshComp->SetSkeletalMeshAsset(Hero);
-	MeshComp->SetRelativeLocation(HeroMeshOffset);
+	// Seat the mesh so the feet (at the mesh's local Z=0) meet the capsule bottom,
+	// computed from the ACTUAL capsule half-height — a Blueprint may have overridden
+	// the size we set in the constructor, which left the avatar floating. The small
+	// extra nudge plants the feet through the movement component's floor-hover.
+	const float CapHalf = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 78.f;
+	MeshComp->SetRelativeLocation(FVector(HeroMeshOffset.X, HeroMeshOffset.Y, -CapHalf - 2.f));
 	MeshComp->SetRelativeRotation(HeroMeshRotation);
 	MeshComp->SetRelativeScale3D(FVector(HeroMeshScale));
 

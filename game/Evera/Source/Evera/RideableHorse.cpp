@@ -118,11 +118,15 @@ void ARideableHorse::Tick(float DeltaSeconds)
 
 void ARideableHorse::UpdateHorseAnim(float DeltaSeconds)
 {
-	// Decide walk vs idle from how far the horse actually moved this frame.
+	// Decide walk vs idle from how far the horse actually moved this frame, but hold
+	// the walk for a moment after it stops — otherwise frame-to-frame speed jitter
+	// restarts the clip constantly and the legs never complete a stride.
 	const float Speed = (DeltaSeconds > 0.f)
 		? FVector::Dist2D(GetActorLocation(), LastPos) / DeltaSeconds
 		: 0.f;
-	UAnimSequence* Want = (Speed > 15.f) ? WalkAnim : IdleAnim;
+	MoveHoldTime = (Speed > 15.f) ? 0.3f : FMath::Max(0.f, MoveHoldTime - DeltaSeconds);
+
+	UAnimSequence* Want = (MoveHoldTime > 0.f) ? WalkAnim : IdleAnim;
 	if (Want && Want != CurrentAnim)
 	{
 		PlayHorseClip(Want);

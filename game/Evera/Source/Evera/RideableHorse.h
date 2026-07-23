@@ -103,6 +103,10 @@ private:
 
 	FVector LastPos = FVector::ZeroVector;
 
+	/** Keeps the walk clip playing briefly after motion stops, so tiny stutters in
+	 *  speed don't restart the animation every frame and freeze the legs. */
+	float MoveHoldTime = 0.f;
+
 	/** Distance from the actor origin down to the lowest point of the mesh (cm). */
 	float FootOffset = 0.f;
 };

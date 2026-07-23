@@ -235,6 +235,12 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerTameAnimal(AWanderingAnimal* Animal);
 
+	/** Eat some farm food to top up hunger (bound to the G key). */
+	void EatFood();
+
+	UFUNCTION(Server, Reliable)
+	void ServerEatFood();
+
 	/** How many animals the player has tamed onto their farm. */
 	int32 FarmAnimalCount = 0;
 

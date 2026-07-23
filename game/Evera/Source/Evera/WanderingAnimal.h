@@ -103,4 +103,15 @@ private:
 	/** How close a tamed animal keeps to its owner before catching up (cm). */
 	UPROPERTY(EditAnywhere, Category="Animal|Behaviour")
 	float FollowDistance = 450.f;
+
+	// ---- Farm produce (tamed animals give food over time) -------------------
+
+	/** Seconds between a tamed animal dropping produce (eggs / milk). */
+	UPROPERTY(EditAnywhere, Category="Animal|Farm")
+	float ProduceInterval = 40.f;
+
+	float ProduceTimer = 0.f;
+
+	/** Drop a piece of produce on the ground for the owner to collect. */
+	void DropProduce();
 };

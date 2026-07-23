@@ -6,6 +6,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
 #include "GameFramework/Character.h"
+#include "ResourcePickup.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 
@@ -69,7 +70,38 @@ void AWanderingAnimal::Tame(ACharacter* NewOwner)
 	bTamed = true;
 	TamedOwner = NewOwner;
 	bGrazing = false;
+	ProduceTimer = ProduceInterval;
 	PlayClip(WalkAnim);
+}
+
+void AWanderingAnimal::DropProduce()
+{
+	if (!HasAuthority() || !GetWorld())
+	{
+		return;
+	}
+
+	// Chickens lay eggs; everything else gives milk.
+	const EResourceType Produce = SpeciesName.Equals(TEXT("Chicken"), ESearchCase::IgnoreCase)
+		? EResourceType::Egg
+		: EResourceType::Milk;
+
+	// Drop it just behind the animal, resting on the ground.
+	FVector Pos = GetActorLocation() - GetActorForwardVector() * 60.f;
+	FHitResult Ground;
+	FCollisionQueryParams GP(FName(TEXT("ProduceGround")), false, this);
+	if (GetWorld()->LineTraceSingleByChannel(Ground, Pos + FVector(0, 0, 300.f), Pos - FVector(0, 0, 2000.f), ECC_Visibility, GP))
+	{
+		Pos.Z = Ground.ImpactPoint.Z + 10.f;
+	}
+
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (AResourcePickup* Pk = GetWorld()->SpawnActor<AResourcePickup>(
+		AResourcePickup::StaticClass(), FTransform(FRotator::ZeroRotator, Pos), SP))
+	{
+		Pk->Setup(Produce, 1);
+	}
 }
 
 void AWanderingAnimal::PickNewTarget()
@@ -112,6 +144,15 @@ void AWanderingAnimal::Tick(float DeltaSeconds)
 	// Tamed: trail the owner like a farm animal instead of wandering a home area.
 	if (bTamed && TamedOwner)
 	{
+		// Farm animals give back: every so often they leave an egg or a bottle of
+		// milk on the ground for their owner to pick up.
+		ProduceTimer -= DeltaSeconds;
+		if (ProduceTimer <= 0.f)
+		{
+			ProduceTimer = ProduceInterval;
+			DropProduce();
+		}
+
 		const FVector Loc = GetActorLocation();
 		FVector ToOwner = TamedOwner->GetActorLocation() - Loc;
 		ToOwner.Z = 0.f;
