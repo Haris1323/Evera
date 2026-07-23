@@ -21,7 +21,9 @@ enum class EBuildPieceType : uint8
 	Roof     UMETA(DisplayName = "Roof"),
 	Pillar   UMETA(DisplayName = "Pillar"),
 	Fence    UMETA(DisplayName = "Fence"),
-	Campfire UMETA(DisplayName = "Campfire")
+	Campfire UMETA(DisplayName = "Campfire"),
+	/** Sleep here to pass the night and wake up rested. */
+	Bed      UMETA(DisplayName = "Bed")
 };
 
 /**

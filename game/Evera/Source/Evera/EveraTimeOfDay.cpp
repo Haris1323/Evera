@@ -113,3 +113,9 @@ bool AEveraTimeOfDay::IsNight() const
 {
 	return TimeOfDay < 6.f || TimeOfDay > 20.f;
 }
+
+void AEveraTimeOfDay::SkipToMorning()
+{
+	TimeOfDay = 7.f;
+	UpdateSky();
+}

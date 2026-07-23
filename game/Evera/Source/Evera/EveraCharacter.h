@@ -264,6 +264,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Digging")
 	float GemChance = 0.15f;
 
+	/** Server RPC: sleep in a bed — pass the night and wake up rested. */
+	UFUNCTION(Server, Reliable)
+	void ServerSleep();
+
 	// ---- Fishing -------------------------------------------------------------
 
 	/** Server RPC: start fishing at the water's edge. */
@@ -325,6 +329,7 @@ protected:
 	void SelectBuild6() { SelectBuildPiece(5); }
 	void SelectBuild7() { SelectBuildPiece(6); }
 	void SelectBuild8() { SelectBuildPiece(7); }
+	void SelectBuild9() { SelectBuildPiece(8); }
 
 	/** Rotate the piece to place by 90 degrees (R key). */
 	void RotateBuildPiece();

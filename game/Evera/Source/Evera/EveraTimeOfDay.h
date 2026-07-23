@@ -35,6 +35,9 @@ public:
 	/** True while the sun is below the horizon (used for a moon/night look). */
 	bool IsNight() const;
 
+	/** Jump the clock forward to a fresh morning (used when the player sleeps). */
+	void SkipToMorning();
+
 protected:
 	virtual void BeginPlay() override;
 

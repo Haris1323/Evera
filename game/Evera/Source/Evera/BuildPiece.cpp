@@ -269,6 +269,14 @@ void ABuildPiece::Rebuild()
 		// be lit). This case only matters for the ghost preview — show a small ring.
 		AddBox(FVector(0, 0, 8.f), FVector(46, 46, 8.f));
 		break;
+
+	case EBuildPieceType::Bed:
+		// A simple cosy bed: legs, a mattress and a pillow at one end.
+		AddBox(FVector(-70, 0, 12.f), FVector(10, 34, 12));   // foot legs
+		AddBox(FVector(70, 0, 12.f), FVector(10, 34, 12));    // head legs
+		AddBox(FVector(0, 0, 30.f), FVector(85, 38, 10));     // mattress
+		AddBox(FVector(58, 0, 46.f), FVector(24, 30, 8));     // pillow
+		break;
 	}
 
 	// Default appearance: real building material. Ghost mode overrides in SetGhost.
@@ -333,6 +341,7 @@ int32 ABuildPiece::GetWoodCost(EBuildPieceType Type)
 	case EBuildPieceType::Pillar:  return 1;
 	case EBuildPieceType::Fence:   return 1;
 	case EBuildPieceType::Campfire:return 3;
+	case EBuildPieceType::Bed:     return 4;
 	default:                       return 2;
 	}
 }
@@ -349,12 +358,13 @@ FString ABuildPiece::GetDisplayName(EBuildPieceType Type)
 	case EBuildPieceType::Pillar:  return TEXT("Pillar");
 	case EBuildPieceType::Fence:   return TEXT("Fence");
 	case EBuildPieceType::Campfire:return TEXT("Campfire");
+	case EBuildPieceType::Bed:     return TEXT("Bed");
 	default:                       return TEXT("Piece");
 	}
 }
 
 EBuildPieceType ABuildPiece::NextType(EBuildPieceType Type)
 {
-	const uint8 Count = static_cast<uint8>(EBuildPieceType::Campfire) + 1;
+	const uint8 Count = static_cast<uint8>(EBuildPieceType::Bed) + 1;
 	return static_cast<EBuildPieceType>((static_cast<uint8>(Type) + 1) % Count);
 }

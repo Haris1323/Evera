@@ -88,6 +88,7 @@ void AEveraHUD::DrawHUD()
 			{ EResourceType::Egg,   nullptr,   FLinearColor(0.96f, 0.93f, 0.82f) },
 			{ EResourceType::Milk,  nullptr,   FLinearColor(0.90f, 0.95f, 1.00f) },
 			{ EResourceType::Fish,  nullptr,   FLinearColor(0.55f, 0.75f, 0.90f) },
+			{ EResourceType::Berry, nullptr,   FLinearColor(0.80f, 0.20f, 0.35f) },
 			{ EResourceType::Gem,   nullptr,   FLinearColor(0.45f, 0.85f, 0.95f) },
 		};
 		const int32 Cols = 2;
@@ -343,7 +344,7 @@ void AEveraHUD::DrawBuildPalette(const AEveraCharacter* Character)
 	const FLinearColor Dim = EveraUI::TextDim;
 
 	const bool bFurn = Character->IsFurnitureMode();
-	const int32 Count = bFurn ? ABuildPiece::NumFurniture() : static_cast<int32>(EBuildPieceType::Campfire) + 1;
+	const int32 Count = bFurn ? ABuildPiece::NumFurniture() : static_cast<int32>(EBuildPieceType::Bed) + 1;
 	const int32 Selected = bFurn ? Character->GetFurnitureIndex() : static_cast<int32>(Character->GetBuildPieceType());
 
 	const float CellW = 112.f;
@@ -468,6 +469,13 @@ void AEveraHUD::DrawPieceIcon(EBuildPieceType Type, float X, float Y, float S, c
 		DrawRect(C, X + S * 0.78f, Y + S * 0.2f, S * 0.12f, S * 0.8f); // right post
 		DrawRect(C, X, Y + S * 0.34f, S, S * 0.10f);                   // top rail
 		DrawRect(C, X, Y + S * 0.60f, S, S * 0.10f);                   // lower rail
+		break;
+
+	case EBuildPieceType::Bed:
+		DrawRect(C, X, Y + S * 0.42f, S, S * 0.22f);            // mattress
+		DrawRect(C, X + S * 0.62f, Y + S * 0.26f, S * 0.34f, S * 0.18f); // pillow
+		DrawRect(C, X + S * 0.02f, Y + S * 0.64f, S * 0.10f, S * 0.22f); // leg
+		DrawRect(C, X + S * 0.88f, Y + S * 0.64f, S * 0.10f, S * 0.22f); // leg
 		break;
 
 	case EBuildPieceType::Campfire:

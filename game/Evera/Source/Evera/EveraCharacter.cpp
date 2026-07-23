@@ -203,6 +203,7 @@ void AEveraCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	PlayerInputComponent->BindKey(EKeys::Six, IE_Pressed, this, &AEveraCharacter::SelectBuild6);
 	PlayerInputComponent->BindKey(EKeys::Seven, IE_Pressed, this, &AEveraCharacter::SelectBuild7);
 	PlayerInputComponent->BindKey(EKeys::Eight, IE_Pressed, this, &AEveraCharacter::SelectBuild8);
+	PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &AEveraCharacter::SelectBuild9);
 }
 
 void AEveraCharacter::Move(const FInputActionValue& Value)
@@ -484,6 +485,14 @@ void AEveraCharacter::Interact()
 			// Light or put out the campfire we're looking at.
 			ServerToggleCampfire(Fire);
 		}
+		else if (ABuildPiece* Piece = Cast<ABuildPiece>(Hit.GetActor()))
+		{
+			// Sleep in a bed to pass the night; other pieces aren't interactive.
+			if (Piece->GetPieceType() == EBuildPieceType::Bed)
+			{
+				ServerSleep();
+			}
+		}
 		else if (AWanderingAnimal* Animal = Cast<AWanderingAnimal>(Hit.GetActor()))
 		{
 			// Befriend the animal so it joins the farm and follows us.
@@ -540,6 +549,27 @@ void AEveraCharacter::ServerGatherFoliage_Implementation(UInstancedStaticMeshCom
 		return;
 	}
 	const FString MeshName = SM->GetName();
+
+	// Bushes and shrubs are foraged by hand: they give berries and stay standing,
+	// so the forest keeps its greenery and kids always have a snack nearby.
+	if (MeshName.Contains(TEXT("Bush")) || MeshName.Contains(TEXT("Shrub")))
+	{
+		FTransform BushXform;
+		if (!FoliageComp->GetInstanceTransform(InstanceIndex, BushXform, /*bWorldSpace=*/true))
+		{
+			return;
+		}
+		if (FVector::Dist(GetActorLocation(), BushXform.GetLocation()) > MaxGatherDistance)
+		{
+			return;
+		}
+		if (UInventoryComponent* Inv = FindComponentByClass<UInventoryComponent>())
+		{
+			Inv->AddResource(EResourceType::Berry, FMath::RandRange(1, 2));
+		}
+		return;
+	}
+
 	if (!MeshName.Contains(TEXT("Tree")) && !MeshName.Contains(TEXT("Pine")))
 	{
 		return;
@@ -804,6 +834,23 @@ void AEveraCharacter::ServerDig_Implementation(FVector Location)
 	}
 }
 
+void AEveraCharacter::ServerSleep_Implementation()
+{
+	// Pass the night: wake at dawn, fully rested.
+	for (TActorIterator<AEveraTimeOfDay> It(GetWorld()); It; ++It)
+	{
+		It->SkipToMorning();
+		break;
+	}
+
+	if (USurvivalStatsComponent* Stats = FindComponentByClass<USurvivalStatsComponent>())
+	{
+		const float Max = Stats->GetMaxValue();
+		Stats->Energy = Max;
+		Stats->Health = FMath::Min(Max, Stats->Health + 20.f);
+	}
+}
+
 // ---- Fishing ----------------------------------------------------------------
 
 void AEveraCharacter::ServerStartFishing_Implementation()
@@ -882,6 +929,11 @@ void AEveraCharacter::ServerEatFood_Implementation()
 	{
 		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 12.f);
 		Stats->Thirst = FMath::Min(Max, Stats->Thirst + 25.f);
+	}
+	else if (Inv->RemoveResource(EResourceType::Berry, 1))
+	{
+		Stats->Hunger = FMath::Min(Max, Stats->Hunger + 8.f);
+		Stats->Thirst = FMath::Min(Max, Stats->Thirst + 4.f);
 	}
 }
 

@@ -17,7 +17,9 @@ enum class EResourceType : uint8
 	/** Treasure dug up with a shovel — the rare, exciting find. */
 	Gem   UMETA(DisplayName = "Gem"),
 	/** Caught with a fishing rod at the water's edge. */
-	Fish  UMETA(DisplayName = "Fish")
+	Fish  UMETA(DisplayName = "Fish"),
+	/** Picked by hand from bushes — the easiest snack in the forest. */
+	Berry UMETA(DisplayName = "Berry")
 };
 
 /** A single stack of a resource held in an inventory. */

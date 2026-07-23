@@ -313,6 +313,8 @@ FString ACompanionPet::ChooseTip()
 		TEXT("Sparkly gems are buried all over. Keep digging — you'll find them!"),
 		TEXT("Make a rod with Y, stand by the water and press E to catch a fish!"),
 		TEXT("Dark outside? Craft a torch with T and light it with L."),
+		TEXT("Berry bushes are everywhere — press E on one to pick a snack by hand!"),
+		TEXT("Build a bed (in the build menu) and press E on it to sleep till morning."),
 		TEXT("Build a campfire, then look at it and press E to light it and warm up!"),
 		TEXT("Fences (in the build menu) make a cosy pen for your farm animals."),
 		TEXT("It gets dark at night — a campfire keeps things bright and warm!"),
